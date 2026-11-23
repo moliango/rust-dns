@@ -278,9 +278,16 @@ jobs:
         run: |
           set -eu
           mkdir -p out
-          find bin sdk-artifacts -type f \( -name '*.ipk' -o -name '*.apk' \) -print -exec sh -c \
-            'cp "$1" "out/${{ matrix.label }}_${{ matrix.arch }}_$(basename "$1")"' _ {} \;
+          for root in bin sdk-artifacts; do
+            [ -d "$root" ] || continue
+            find "$root" -type f \( -name '*.ipk' -o -name '*.apk' \) -print -exec sh -c \
+              'cp "$1" "out/${{ matrix.label }}_${{ matrix.arch }}_$(basename "$1")"' _ {} \;
+          done
           ls -lh out
+          if ! find out -type f \( -name '*.ipk' -o -name '*.apk' \) | grep -q .; then
+            echo "no OpenWrt packages were collected"
+            exit 1
+          fi
 
       - name: Upload OpenWrt packages
         uses: actions/upload-artifact@v4
