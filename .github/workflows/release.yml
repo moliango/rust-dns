@@ -145,7 +145,14 @@ jobs:
           mkdir -p out
           BIN="rust-dns/target/${{ matrix.target }}/release/rust-dns"
           file "$BIN"
-          tar -czf "out/rust-dns-${VERSION}-${{ matrix.arch }}.tar.gz" -C "$(dirname "$BIN")" rust-dns
+          # OpenWrt unpacks into PKG_BUILD_DIR/.., so the tarball must have a
+          # top-level directory named rust-dns-<version>-<arch>.
+          STAGE="$(mktemp -d)"
+          DIR="rust-dns-${VERSION}-${{ matrix.arch }}"
+          mkdir -p "$STAGE/$DIR"
+          cp "$BIN" "$STAGE/$DIR/rust-dns"
+          tar -czf "out/rust-dns-${VERSION}-${{ matrix.arch }}.tar.gz" -C "$STAGE" "$DIR"
+          rm -rf "$STAGE"
           (cd out && sha256sum "rust-dns-${VERSION}-${{ matrix.arch }}.tar.gz" > "rust-dns-${VERSION}-${{ matrix.arch }}.tar.gz.sha256")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 

@@ -55,9 +55,11 @@ dist/                         local release artifacts (not committed)
 ### 1. Release binary
 
 Download `rust-dns-<version>-<arch>.tar.gz` from
-[Releases](https://github.com/moliango/rust-dns/releases), then:
+[Releases](https://github.com/moliango/rust-dns/releases), extract it, then:
 
 ```sh
+tar -xzf rust-dns-<version>-<arch>.tar.gz
+cd rust-dns-<version>-<arch>
 ./rust-dns version
 ./rust-dns check -c /path/to/config.json
 ./rust-dns start -c /path/to/config.json -d /var/rust-dns

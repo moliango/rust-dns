@@ -53,6 +53,8 @@ dist/                         本地 release 产物（不提交）
 `rust-dns-<version>-<arch>.tar.gz`，解压后：
 
 ```sh
+tar -xzf rust-dns-<version>-<arch>.tar.gz
+cd rust-dns-<version>-<arch>
 ./rust-dns version
 ./rust-dns check -c /path/to/config.json
 ./rust-dns start -c /path/to/config.json -d /var/rust-dns
