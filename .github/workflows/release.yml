@@ -253,7 +253,7 @@ jobs:
             -v "$PWD/feed:/feed" \
             -v "$PWD/sdk-artifacts:/artifacts" \
             -v "$PWD/entrypoint.sh:/entrypoint.sh:ro" \
-            -e FEEDNAME=rust-dns \
+            -e FEEDNAME=rustdns \
             -e PACKAGES="rust-dns luci-app-rust-dns" \
             -e NO_REFRESH_CHECK=1 \
             -e NO_SHFMT_CHECK=1 \
