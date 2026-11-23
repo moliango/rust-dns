@@ -93,6 +93,9 @@ cargo zigbuild --release --target armv7-unknown-linux-musleabihf -p rust-dns
 
 ### 3. OpenWrt 包
 
+详细安装步骤（架构选择、opkg/apk、验证、排障）：
+[`docs/INSTALL-openwrt.md`](docs/INSTALL-openwrt.md)。
+
 GitHub Release 会附带 CI 构建好的 OpenWrt 包：
 
 - **23.05.5 / 24.10.8 ipk**：x86_64、aarch64_generic、aarch64_cortex-a53、

@@ -1,0 +1,165 @@
+# 安装 rust-dns 到 OpenWrt
+
+Release: <https://github.com/moliango/rust-dns/releases/tag/v0.1.0>
+
+每个平台有三个包：
+
+- `rust-dns`：服务包（二进制、init、UCI、规则、更新工具）
+- `luci-app-rust-dns`：LuCI 六页管理界面
+- `luci-i18n-rust-dns-zh-cn`：可选中文翻译
+
+## 1. 确认 OpenWrt 版本和架构
+
+```sh
+cat /etc/openwrt_release
+# DISTRIB_RELEASE='24.10.8'
+# DISTRIB_ARCH='aarch64_cortex-a53'
+
+# opkg 系统（23.05 / 24.10）
+opkg print-architecture
+
+# apk 系统（25.12）
+apk --print-arch
+```
+
+对照 Release 里的前缀选择文件：
+
+| OpenWrt | 包管理 | 选 `aarch64_generic` | 选 `aarch64_cortex-a53` | 选 `arm_cortex-a7...` | 选 `x86_64` |
+|---|---|---|---|---|---|
+| 23.05.5 | opkg | ✅ | — | ✅ | ✅ |
+| 24.10.8 | opkg | ✅ | ✅ | ✅ | ✅ |
+| 25.12.6 | apk | — | — | — | ✅ |
+
+> 24.10 的 aarch64 路由器通常是 `aarch64_cortex-a53`（MT798x/IPQ807x 等），
+> `aarch64_generic` 用于通用 ARMv8 镜像。选错会报 architecture 不兼容。
+
+## 2. 下载
+
+在 Release 页面下载对应版本/架构的三个文件，或用 SSH 在路由器上下载。
+文件名带 `版本_架构-版本_` 前缀，例如 24.10.8 x86_64：
+
+```text
+24.10.8_x86_64-24.10.8_rust-dns_0.1.0-r1_x86_64.ipk
+24.10.8_x86_64-24.10.8_luci-app-rust-dns_0.1.0-r1_all.ipk
+24.10.8_x86_64-24.10.8_luci-i18n-rust-dns-zh-cn_0.261123.47855_all.ipk
+```
+
+路由器上下载（把文件名换成你的版本/架构）：
+
+```sh
+cd /tmp
+BASE=https://github.com/moliango/rust-dns/releases/download/v0.1.0
+wget "$BASE/24.10.8_x86_64-24.10.8_rust-dns_0.1.0-r1_x86_64.ipk"
+wget "$BASE/24.10.8_x86_64-24.10.8_luci-app-rust-dns_0.1.0-r1_all.ipk"
+wget "$BASE/24.10.8_x86_64-24.10.8_luci-i18n-rust-dns-zh-cn_0.261123.47855_all.ipk"
+```
+
+国内网络访问 GitHub 慢时，可以在电脑上下载后用 `scp` 传到 `/tmp`，或者使用你信任的
+GitHub 代理。不要从不明来源下载重新打包的 ipk。
+
+## 3. 安装
+
+先更新软件源，然后先装服务包，再装 LuCI 包：
+
+```sh
+# 23.05 / 24.10
+opkg update
+opkg install ./24.10.8_x86_64-24.10.8_rust-dns_0.1.0-r1_x86_64.ipk
+opkg install ./24.10.8_x86_64-24.10.8_luci-app-rust-dns_0.1.0-r1_all.ipk
+opkg install ./24.10.8_x86_64-24.10.8_luci-i18n-rust-dns-zh-cn_0.261123.47855_all.ipk  # 可选
+```
+
+```sh
+# 25.12 / apk
+apk update
+apk add --allow-untrusted ./25.12.6_x86_64-25.12.6_rust-dns-0.1.0-r1.apk
+apk add --allow-untrusted ./25.12.6_x86_64-25.12.6_luci-app-rust-dns-0.1.0-r1.apk
+apk add --allow-untrusted ./25.12.6_x86_64-25.12.6_luci-i18n-rust-dns-zh-cn-*.apk  # 可选
+```
+
+如果提示缺少依赖：
+
+```sh
+opkg install ucode ucode-mod-fs ucode-mod-uci uclient-fetch ca-bundle luci-base
+# 或 apk add ucode ucode-mod-fs ucode-mod-uci uclient-fetch ca-bundle luci-base
+```
+
+## 4. 启用并配置
+
+服务包默认 `enabled=0`，需要启用：
+
+### LuCI
+
+重新登录 LuCI → **Services → Rust DNS → Basic Settings**：
+
+1. 勾选 **Enabled**
+2. 设置监听地址/端口（默认 `0.0.0.0:5335`）
+3. 设置本地/远程 DNS 上游
+4. 需要让 dnsmasq 使用 rust-dns 时，勾选 **DNS Forward**
+5. **Save & Apply**
+
+### 命令行
+
+```sh
+uci set rust-dns.config.enabled='1'
+uci commit rust-dns
+/etc/init.d/rust-dns enable
+/etc/init.d/rust-dns start
+```
+
+让 dnsmasq 把查询转发给 rust-dns：
+
+```sh
+uci set rust-dns.config.redirect='1'
+uci commit rust-dns
+/etc/init.d/rust-dns restart
+```
+
+## 5. 验证
+
+```sh
+service rust-dns status
+logread -e rust-dns | tail -20
+
+# 监听端口（默认 5335）
+netstat -lnup | grep 5335 || ss -lnup | grep 5335
+
+# 直接查询
+dig @127.0.0.1 -p 5335 example.com
+# 没有 dig：opkg install bind-dig，或用 nslookup
+
+# 查看生成配置
+sed -n '1,40p' /var/etc/rust-dns/config.json
+```
+
+LuCI 菜单不出现时：
+
+```sh
+rm -rf /tmp/luci-*
+# 退出并重新登录 LuCI，或重启
+```
+
+## 6. 升级 / 卸载
+
+升级：直接安装新版本 ipk/apk，UCI、规则和 `config_custom.yaml` 属于 conffiles，会保留。
+
+卸载：
+
+```sh
+opkg remove luci-app-rust-dns rust-dns
+# 或 apk del luci-app-rust-dns rust-dns
+```
+
+卸载不会自动删除 `/etc/config/rust-dns`、`/etc/rust-dns/` 下的用户配置和规则。
+
+## 7. 常见问题
+
+| 现象 | 处理 |
+|---|---|
+| `package architecture ... not compatible` | 架构选错；按 `opkg print-architecture` / `apk --print-arch` 选 |
+| 依赖 `ucode-mod-fs/uci` 缺失 | `opkg update` 后安装 `ucode ucode-mod-fs ucode-mod-uci luci-base` |
+| LuCI 没有 Rust DNS 菜单 | 清 `/tmp/luci-*`、重新登录；确认 `luci-app-rust-dns` 已安装 |
+| 服务起不来 | 看 `/var/etc/rust-dns/last-error.log` 和 `logread -e rust-dns` |
+| 5335 被占用 | Basic 改监听端口；或先停掉占用者 |
+| 查询超时 | 检查上游 DNS 是否可达；远程 `tls://8.8.8.8` 在部分网络不可用，换本地/可用上游 |
+| apk 提示未签名 | 使用 `apk add --allow-untrusted`（当前 Release 未签名） |

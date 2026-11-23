@@ -98,6 +98,9 @@ cargo zigbuild --release --target armv7-unknown-linux-musleabihf -p rust-dns
 
 ### 3. OpenWrt packages
 
+Detailed install guide (arch selection, opkg/apk, verify, troubleshooting):
+[`docs/INSTALL-openwrt.md`](docs/INSTALL-openwrt.md).
+
 Prebuilt packages are attached to each GitHub release by the CI workflow:
 
 - **23.05.5 / 24.10.8 ipk**: x86_64, aarch64_generic, aarch64_cortex-a53,
