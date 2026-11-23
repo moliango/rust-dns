@@ -248,6 +248,10 @@ jobs:
       - name: Build OpenWrt packages
         run: |
           set -o pipefail
+          # The manual container runs without the action's chown step; make
+          # the bind mounts writable by the SDK user so it can move bin/ and
+          # logs/ into /artifacts at the end.
+          chmod -R a+rwX feed sdk-artifacts
           docker run --rm \
             --entrypoint bash \
             -v "$PWD/feed:/feed" \
