@@ -239,9 +239,15 @@ jobs:
           echo "$SHA" > "feed/rust-dns/hashes/${{ matrix.bin_arch }}.sha256"
           echo "binary ${{ matrix.bin_arch }} sha256=$SHA"
 
+      - name: Check SDK image
+        run: docker manifest inspect "openwrt/sdk:${{ matrix.arch }}" >/dev/null
+
       - name: Build OpenWrt packages
         uses: openwrt/gh-action-sdk@main
         env:
+          # The action defaults to ghcr.io; Docker Hub is verified public and
+          # carries the same release-qualified tags.
+          CONTAINER: openwrt/sdk
           ARCH: ${{ matrix.arch }}
           FEED_DIR: ${{ github.workspace }}/feed
           FEEDNAME: rust-dns
