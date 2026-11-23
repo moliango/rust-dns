@@ -1,0 +1,227 @@
+{
+  "log": {
+    "level": "warning",
+    "file": "/var/log/rust-dns.log",
+    "size": "2",
+    "backups": 3
+  },
+  "api": {
+    "http": "127.0.0.1:9091"
+  },
+  "include": [],
+  "plugins": [
+    {
+      "tag": "stats_collector",
+      "type": "stats_collector",
+      "args": {
+        "enabled": true,
+        "capacity": 2000,
+        "dump_file": "",
+        "dump_interval": 600,
+        "history_max": 168,
+        "top_max": 100,
+        "logs_max": 200
+      }
+    },
+    {
+      "tag": "bootstrap",
+      "type": "bootstrap",
+      "args": {
+        "servers": ["119.29.29.29"]
+      }
+    },
+    {
+      "tag": "geosite_cn",
+      "type": "domain_set",
+      "args": {
+        "files": ["/var/rust-dns/geosite_cn.txt"]
+      }
+    },
+    {
+      "tag": "geoip_cn",
+      "type": "ip_set",
+      "args": {
+        "files": ["/var/rust-dns/geoip_cn.txt"]
+      }
+    },
+    {
+      "tag": "adlist",
+      "type": "domain_set",
+      "args": {
+        "files": ["/var/rust-dns/adlist.txt"]
+      }
+    },
+    {
+      "tag": "hosts",
+      "type": "domain_set",
+      "args": {
+        "files": ["/etc/rust-dns/rule/hosts.txt"]
+      }
+    },
+    {
+      "tag": "whitelist",
+      "type": "domain_set",
+      "args": {
+        "files": ["/etc/rust-dns/rule/whitelist.txt"]
+      }
+    },
+    {
+      "tag": "blocklist",
+      "type": "domain_set",
+      "args": {
+        "files": ["/etc/rust-dns/rule/blocklist.txt"]
+      }
+    },
+    {
+      "tag": "greylist",
+      "type": "domain_set",
+      "args": {
+        "files": ["/etc/rust-dns/rule/greylist.txt"]
+      }
+    },
+    {
+      "tag": "ddnslist",
+      "type": "domain_set",
+      "args": {
+        "files": ["/etc/rust-dns/rule/ddnslist.txt"]
+      }
+    },
+    {
+      "tag": "redirect",
+      "type": "domain_set",
+      "args": {
+        "files": ["/etc/rust-dns/rule/redirect.txt"]
+      }
+    },
+    {
+      "tag": "local-ptr",
+      "type": "domain_set",
+      "args": {
+        "files": ["/etc/rust-dns/rule/local-ptr.txt"]
+      }
+    },
+    {
+      "tag": "streaming",
+      "type": "domain_set",
+      "args": {
+        "files": ["/etc/rust-dns/rule/streaming.txt"]
+      }
+    },
+    {
+      "tag": "cloudflare_cidr",
+      "type": "ip_set",
+      "args": {
+        "files": ["/etc/rust-dns/rule/cloudflare-cidr.txt"]
+      }
+    },
+    {
+      "tag": "cache",
+      "type": "cache",
+      "args": {
+        "size": 1000,
+        "lazy_cache_ttl": 86400,
+        "dump_file": "/var/rust-dns/cache.dump",
+        "dump_interval": 3600,
+        "prefetch": false,
+        "prefetch_before_expire": 10,
+        "prefetch_min_hits": 3,
+        "prefetch_scan_interval": 5
+      }
+    },
+    {
+      "tag": "forward_local",
+      "type": "forward",
+      "args": {
+        "upstreams": [
+          {
+            "addr": "udp://119.29.29.29"
+          }
+        ],
+        "concurrent": 2,
+        "idle_timeout": 30,
+        "ecs": false
+      }
+    },
+    {
+      "tag": "forward_stream",
+      "type": "forward",
+      "args": {
+        "upstreams": [
+          {
+            "addr": "tls://8.8.8.8",
+            "enable_pipeline": true,
+            "verify": true
+          }
+        ],
+        "concurrent": 2,
+        "idle_timeout": 30,
+        "ecs": false
+      }
+    },
+    {
+      "tag": "forward_remote",
+      "type": "forward",
+      "args": {
+        "upstreams": [
+          {
+            "addr": "tls://8.8.8.8",
+            "enable_pipeline": true,
+            "verify": true
+          }
+        ],
+        "concurrent": 2,
+        "idle_timeout": 30,
+        "ecs": false,
+        "dns_leak": false
+      }
+    },
+    {
+      "tag": "modify_response",
+      "type": "response_modifier",
+      "args": {
+        "minimal_ttl": 0,
+        "maximum_ttl": 0,
+        "prefer_ipv4_cn": false,
+        "prefer_ipv4": false,
+        "reject_type65": false
+      }
+    },
+    {
+      "tag": "main",
+      "type": "sequence",
+      "args": {
+        "rules": [
+          "hosts",
+          "whitelist -> forward_local",
+          "blocklist -> reject",
+          "local-ptr -> reject",
+          "ddnslist -> forward_local",
+          "streaming -> forward_stream",
+          "geosite_cn -> forward_local",
+          "geoip_cn -> forward_local",
+          "greylist -> forward_remote",
+          "redirect",
+          "modify_response",
+          "cache",
+          "forward_remote"
+        ]
+      }
+    },
+    {
+      "tag": "dns_udp",
+      "type": "udp_server",
+      "args": {
+        "entry": "main",
+        "listen": "0.0.0.0:5335"
+      }
+    },
+    {
+      "tag": "dns_tcp",
+      "type": "tcp_server",
+      "args": {
+        "entry": "main",
+        "listen": "0.0.0.0:5335"
+      }
+    }
+  ]
+}

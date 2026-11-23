@@ -1,0 +1,2 @@
+# rust-dns DDNS rules
+# One domain per line. Domains here use the local DNS upstream and are not cached.

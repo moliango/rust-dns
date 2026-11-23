@@ -1,0 +1,2 @@
+# rust-dns streaming media rules
+# One domain per line. Domains here use the streaming media DNS upstream.

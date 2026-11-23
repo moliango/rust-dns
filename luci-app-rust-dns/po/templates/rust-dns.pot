@@ -1,0 +1,1494 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8"
+
+
+msgid "Rust DNS"
+msgstr ""
+
+msgid "RUNNING"
+msgstr ""
+
+msgid "NOT RUNNING"
+msgstr ""
+
+msgid "Command failed"
+msgstr ""
+
+msgid "Service command \"%s\" completed."
+msgstr ""
+
+msgid "Service command \"%s\" failed: %s"
+msgstr ""
+
+msgid "Last configuration error"
+msgstr ""
+
+msgid "DNS cache flushed successfully."
+msgstr ""
+
+msgid "Failed to flush the DNS cache."
+msgstr ""
+
+msgid "Failed to flush the DNS cache: %s"
+msgstr ""
+
+msgid "rust-dns is a Rust rewrite of mosdns with compatible rule files and OpenWrt integration."
+msgstr ""
+
+msgid "Collecting data..."
+msgstr ""
+
+msgid "Start"
+msgstr ""
+
+msgid "Stop"
+msgstr ""
+
+msgid "Restart"
+msgstr ""
+
+msgid "Enable autostart"
+msgstr ""
+
+msgid "Disable autostart"
+msgstr ""
+
+msgid "Basic Options"
+msgstr ""
+
+msgid "Advanced Options"
+msgstr ""
+
+msgid "Cloudflare Options"
+msgstr ""
+
+msgid "API Options"
+msgstr ""
+
+msgid "GeoData Export"
+msgstr ""
+
+msgid "Enabled"
+msgstr ""
+
+msgid "Config File"
+msgstr ""
+
+msgid "Generated Config"
+msgstr ""
+
+msgid "Custom Config"
+msgstr ""
+
+msgid "Listen Port"
+msgstr ""
+
+msgid "Listen Address"
+msgstr ""
+
+msgid "Log Level"
+msgstr ""
+
+msgid "Debug"
+msgstr ""
+
+msgid "Info"
+msgstr ""
+
+msgid "Warning"
+msgstr ""
+
+msgid "Error"
+msgstr ""
+
+msgid "Log File"
+msgstr ""
+
+msgid "Log File Size"
+msgstr ""
+
+msgid "Maximum size of the log file (in MB)."
+msgstr ""
+
+msgid "DNS Forward"
+msgstr ""
+
+msgid "Forward dnsmasq queries to rust-dns."
+msgstr ""
+
+msgid "DNS redirect"
+msgstr ""
+
+msgid "Force all local DNS queries to rust-dns (DNS hijacking)."
+msgstr ""
+
+msgid "China DNS prefer IPv4"
+msgstr ""
+
+msgid "Prefer IPv4 answers for China DNS resolution of dual-stack domains."
+msgstr ""
+
+msgid "Remote DNS prefer IPv4"
+msgstr ""
+
+msgid "Prefer IPv4 answers for Remote / Streaming DNS resolution of dual-stack domains."
+msgstr ""
+
+msgid "Custom China DNS"
+msgstr ""
+
+msgid "Follow the WAN interface DNS servers unless a custom China DNS is configured."
+msgstr ""
+
+msgid "Apple domains optimization"
+msgstr ""
+
+msgid "Use the China CDN answer for Apple domains that also have a mainland CDN."
+msgstr ""
+
+msgid "China DNS server"
+msgstr ""
+
+msgid "Tencent Public DNS (119.29.29.29)"
+msgstr ""
+
+msgid "Tencent Public DNS (119.28.28.28)"
+msgstr ""
+
+msgid "Aliyun Public DNS (223.5.5.5)"
+msgstr ""
+
+msgid "Aliyun Public DNS (223.6.6.6)"
+msgstr ""
+
+msgid "TrafficRoute Public DNS (180.184.1.1)"
+msgstr ""
+
+msgid "TrafficRoute Public DNS (180.184.2.2)"
+msgstr ""
+
+msgid "Xinfeng Public DNS (114.114.114.114)"
+msgstr ""
+
+msgid "Xinfeng Public DNS (114.114.115.115)"
+msgstr ""
+
+msgid "Baidu Public DNS (180.76.76.76)"
+msgstr ""
+
+msgid "Tencent Public DNS (DNS over HTTPS)"
+msgstr ""
+
+msgid "Aliyun Public DNS (DNS over QUIC)"
+msgstr ""
+
+msgid "Aliyun Public DNS (DNS over HTTPS)"
+msgstr ""
+
+msgid "Aliyun Public DNS (DNS over HTTP/3)"
+msgstr ""
+
+msgid "360 Public DNS (DNS over HTTPS)"
+msgstr ""
+
+msgid "Remote DNS server"
+msgstr ""
+
+msgid "Cloudflare Public DNS (1.1.1.1)"
+msgstr ""
+
+msgid "Cloudflare Public DNS (1.0.0.1)"
+msgstr ""
+
+msgid "Google Public DNS (8.8.8.8)"
+msgstr ""
+
+msgid "Google Public DNS (8.8.4.4)"
+msgstr ""
+
+msgid "Quad9 Public DNS (9.9.9.9)"
+msgstr ""
+
+msgid "Quad9 Public DNS (149.112.112.112)"
+msgstr ""
+
+msgid "Cisco Public DNS (208.67.222.222)"
+msgstr ""
+
+msgid "Cisco Public DNS (208.67.220.220)"
+msgstr ""
+
+msgid "Custom Stream Media DNS"
+msgstr ""
+
+msgid "Streaming media rules use this DNS server."
+msgstr ""
+
+msgid "Streaming Media DNS server"
+msgstr ""
+
+msgid "Bootstrap DNS servers"
+msgstr ""
+
+msgid "Bootstrap DNS servers resolve the IP addresses of DoH/DoT upstreams."
+msgstr ""
+
+msgid "Configuration Editor"
+msgstr ""
+
+msgid "Contents of %s. The file is validated with \"rust-dns check\" before it replaces the current configuration."
+msgstr ""
+
+msgid "rust-dns rejected the configuration."
+msgstr ""
+
+msgid "Configuration saved, but restarting the service failed: %s"
+msgstr ""
+
+msgid "Configuration validation failed: %s"
+msgstr ""
+
+msgid "Concurrent"
+msgstr ""
+
+msgid "Number of upstream DNS servers that may be queried at the same time."
+msgstr ""
+
+msgid "Idle Timeout"
+msgstr ""
+
+msgid "DoH/TCP/DoT connection multiplexing idle timeout (seconds)."
+msgstr ""
+
+msgid "TCP/DoT Connection Multiplexing"
+msgstr ""
+
+msgid "Enable RFC 7766 query pipelining for TCP/DoT connections."
+msgstr ""
+
+msgid "Disable TLS Certificate Check"
+msgstr ""
+
+msgid "Skip TLS certificate validation for upstream servers. Use only when the system time or CA store is broken."
+msgstr ""
+
+msgid "Enable EDNS Client Subnet"
+msgstr ""
+
+msgid "ECS IP Address"
+msgstr ""
+
+msgid "IP address used for remote upstream ECS. The /24 subnet is sent to the upstream."
+msgstr ""
+
+msgid "Prevent DNS Leaks"
+msgstr ""
+
+msgid "Force the fallback policy to use the remote DNS upstream."
+msgstr ""
+
+msgid "Enable DNS Cache"
+msgstr ""
+
+msgid "DNS Cache Size"
+msgstr ""
+
+msgid "Lazy Cache TTL"
+msgstr ""
+
+msgid "How long expired cache entries stay usable (seconds). Set to 0 to disable lazy caching."
+msgstr ""
+
+msgid "Cache Prefetching"
+msgstr ""
+
+msgid "Refresh hot cache entries in the background before they expire."
+msgstr ""
+
+msgid "Prefetch Before Expire"
+msgstr ""
+
+msgid "Prefetch when the remaining TTL is below this value (seconds)."
+msgstr ""
+
+msgid "Prefetch Min Hits"
+msgstr ""
+
+msgid "Minimum cache hits since the last refresh before a prefetch is triggered."
+msgstr ""
+
+msgid "Prefetch Scan Interval"
+msgstr ""
+
+msgid "Interval between background cache scans (seconds)."
+msgstr ""
+
+msgid "Cache Dump"
+msgstr ""
+
+msgid "Persist the cache and reload it on the next startup."
+msgstr ""
+
+msgid "Auto Save Cache Interval"
+msgstr ""
+
+msgid "Minimum TTL"
+msgstr ""
+
+msgid "Clamp the minimum DNS answer TTL (seconds). 0 disables clamping."
+msgstr ""
+
+msgid "Maximum TTL"
+msgstr ""
+
+msgid "Clamp the maximum DNS answer TTL (seconds). 0 disables clamping."
+msgstr ""
+
+msgid "Disable RR Type 65 (HTTPS/SVCB)"
+msgstr ""
+
+msgid "Block HTTPS/SVCB records and force A/AAAA answers only."
+msgstr ""
+
+msgid "Enable DNS Adblock"
+msgstr ""
+
+msgid "Adblock Source"
+msgstr ""
+
+msgid "Local files and domain lists are supported, for example file:///var/rust-dns/example.txt."
+msgstr ""
+
+msgid "Rewrite answers that match Cloudflare IP ranges to a custom IP (experimental)."
+msgstr ""
+
+msgid "Custom IP"
+msgstr ""
+
+msgid "Cloudflare IP Ranges"
+msgstr ""
+
+msgid "The CIDR list is maintained by the rust-dns service package in %s and can be refreshed by the Cloudflare optimizer."
+msgstr ""
+
+msgid "API Listen Port"
+msgstr ""
+
+msgid "Enable Stats Collector"
+msgstr ""
+
+msgid "Ring Buffer Capacity"
+msgstr ""
+
+msgid "Query log ring buffer capacity (FIFO overwrite). Larger values use more memory."
+msgstr ""
+
+msgid "Stats Dump"
+msgstr ""
+
+msgid "Persist query statistics and logs and reload them on the next startup."
+msgstr ""
+
+msgid "Auto Save Stats Interval"
+msgstr ""
+
+msgid "Security Notice"
+msgstr ""
+
+msgid "The admin API is bound to 127.0.0.1 by the rust-dns service. Do not expose the API port to untrusted networks."
+msgstr ""
+
+msgid "Flushing the cache removes all cached DNS records."
+msgstr ""
+
+msgid "Flush DNS Cache"
+msgstr ""
+
+msgid "GeoSite Tags"
+msgstr ""
+
+msgid "GeoSite categories to export. Multiple tags are allowed."
+msgstr ""
+
+msgid "Export directory: /var/rust-dns"
+msgstr ""
+
+msgid "GeoIP Tags"
+msgstr ""
+
+msgid "GeoIP categories to export. Multiple tags are allowed."
+msgstr ""
+
+msgid "GeoData Notice"
+msgstr ""
+
+msgid "GeoData export is performed by the rust-dns update tool from v2ray-geosite/v2ray-geoip data. The Update page manages the source archives."
+msgstr ""
+
+msgid "Basic Settings"
+msgstr ""
+
+msgid "Rules"
+msgstr ""
+
+msgid "Geodata Update"
+msgstr ""
+
+msgid "Statistics"
+msgstr ""
+
+msgid "Logs"
+msgstr ""
+
+msgid "Rule Settings"
+msgstr ""
+
+msgid "The list of rules only apply to 'Default Config' profiles."
+msgstr ""
+
+msgid "White Lists"
+msgstr ""
+
+msgid "Block Lists"
+msgstr ""
+
+msgid "Grey Lists"
+msgstr ""
+
+msgid "DDNS Lists"
+msgstr ""
+
+msgid "Hosts"
+msgstr ""
+
+msgid "Redirect"
+msgstr ""
+
+msgid "Block PTR"
+msgstr ""
+
+msgid "Streaming Media"
+msgstr ""
+
+msgid "Log Data"
+msgstr ""
+
+msgid "Clear logs"
+msgstr ""
+
+msgid "No log data."
+msgstr ""
+
+msgid "Refresh every %s seconds."
+msgstr ""
+
+msgid "Updating Database..."
+msgstr ""
+
+msgid "Update success"
+msgstr ""
+
+msgid "Update failed"
+msgstr ""
+
+msgid "Another update is already in progress."
+msgstr ""
+
+msgid "Please wait, this may take a few moments..."
+msgstr ""
+
+msgid "Close"
+msgstr ""
+
+msgid "Starting update..."
+msgstr ""
+
+msgid "Auto Update"
+msgstr ""
+
+msgid "GeoIP Type"
+msgstr ""
+
+msgid "GitHub Proxy"
+msgstr ""
+
+msgid "Update"
+msgstr ""
+
+msgid "Query Log"
+msgstr ""
+
+msgid "Top Domains"
+msgstr ""
+
+msgid "Top Clients"
+msgstr ""
+
+msgid "Top Blocked"
+msgstr ""
+
+msgid "Total Queries"
+msgstr ""
+
+msgid "Blocked"
+msgstr ""
+
+msgid "Cached"
+msgstr ""
+
+msgid "QPS"
+msgstr ""
+
+msgid "Search"
+msgstr ""
+
+msgid "Filter"
+msgstr ""
+
+msgid "All"
+msgstr ""
+
+msgid "Blocked Only"
+msgstr ""
+
+msgid "Cached Only"
+msgstr ""
+
+msgid "Previous"
+msgstr ""
+
+msgid "Next"
+msgstr ""
+
+msgid "Page %d / %d (%d entries)"
+msgstr ""
+
+msgid "No query log entries found."
+msgstr ""
+
+msgid "Query Log Details"
+msgstr ""
+
+msgid "Client IP"
+msgstr ""
+
+msgid "Time"
+msgstr ""
+
+msgid "Upstream"
+msgstr ""
+
+msgid "Rule Hit"
+msgstr ""
+
+msgid "Answers"
+msgstr ""
+
+msgid "No DNS answer records returned."
+msgstr ""
+
+msgid "Add to Whitelist"
+msgstr ""
+
+msgid "Add to Blocklist"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Confirm"
+msgstr ""
+
+msgid "Domain:"
+msgstr ""
+
+msgid "Domain name cannot be empty."
+msgstr ""
+
+msgid "Failed to update rule file: %s"
+msgstr ""
+
+msgid "Add domain to the whitelist to permit DNS resolution:"
+msgstr ""
+
+msgid "Add domain to the blocklist to block DNS resolution:"
+msgstr ""
+
+msgid "Target file: %s (supports domain matching rules)"
+msgstr ""
+
+msgid "Unable to save contents: %s"
+msgstr ""
+
+msgid "Save"
+msgstr ""
+
+msgid "Apply"
+msgstr ""
+
+msgid "Save & Apply"
+msgstr ""
+
+msgid "Reset"
+msgstr ""
+
+msgid "Statistics API is unreachable."
+msgstr ""
+
+msgid "The statistics API is unreachable."
+msgstr ""
+
+msgid "All levels"
+msgstr ""
+
+msgid "Trace"
+msgstr ""
+
+msgid "Showing %d of %d lines. Refresh every 5 seconds."
+msgstr ""
+
+msgid "Log API is unavailable."
+msgstr ""
+
+msgid "Logs cleared."
+msgstr ""
+
+msgid "Failed to clean logs."
+msgstr ""
+
+msgid "Failed to clean logs: %s"
+msgstr ""
+
+msgid "Are you sure you want to clear the log file? This cannot be undone."
+msgstr ""
+
+msgid "Clear"
+msgstr ""
+
+msgid "Filter by keyword..."
+msgstr ""
+
+msgid "Follow tail"
+msgstr ""
+
+msgid "rust-dns"
+msgstr ""
+
+msgid "Added domain names always permit resolution using 'Local DNS' with the highest priority (one domain per line, supports domain matching rules)."
+msgstr ""
+
+msgid "Added domain names will block DNS resolution (one domain per line, supports domain matching rules)."
+msgstr ""
+
+msgid "Added domain names will always use 'Remote DNS' for resolution (one domain per line, supports domain matching rules)."
+msgstr ""
+
+msgid "Added domain names will always use 'Local DNS' for resolution with a forced TTL of 5 seconds and will not be cached (one domain per line, supports domain matching rules)."
+msgstr ""
+
+msgid "Custom hosts rewrite, for example: baidu.com 10.0.0.1 (one rule per line, supports domain matching rules)."
+msgstr ""
+
+msgid "Redirect requests for one domain to another, for example: baidu.com qq.com (one rule per line)."
+msgstr ""
+
+msgid "Added domain names will block PTR requests (one domain per line, supports domain matching rules)."
+msgstr ""
+
+msgid "When 'Custom Stream Media DNS' is enabled, added domains always use the streaming media DNS server for resolution (one domain per line, supports domain matching rules)."
+msgstr ""
+
+msgid "Rules saved. The rust-dns service was asked to reload."
+msgstr ""
+
+msgid "Rules saved, but the service could not be reloaded. Please restart rust-dns manually."
+msgstr ""
+
+msgid "The rule files below are used by the generated configuration. One entry per line."
+msgstr ""
+
+msgid "Saving with \"Save & Apply\" writes every edited file and reloads the rust-dns service."
+msgstr ""
+
+msgid "Clear this file"
+msgstr ""
+
+msgid "Clear rule file"
+msgstr ""
+
+msgid "Are you sure you want to clear %s? This cannot be undone."
+msgstr ""
+
+msgid "%s cleared, reloading the page."
+msgstr ""
+
+msgid "Failed to save rules: %s"
+msgstr ""
+
+msgid "rust-dns API is unreachable. Please ensure rust-dns is running and the stats collector is enabled."
+msgstr ""
+
+msgid "● Live Auto-refresh"
+msgstr ""
+
+msgid "❚❚ Paused by user"
+msgstr ""
+
+msgid "❚❚ Paused (Page %d)"
+msgstr ""
+
+msgid "● Live"
+msgstr ""
+
+msgid "Per-query speed"
+msgstr ""
+
+msgid "DNS Queries Total"
+msgstr ""
+
+msgid "Blocked by Filters"
+msgstr ""
+
+msgid "Cached Queries"
+msgstr ""
+
+msgid "Average Processing Time"
+msgstr ""
+
+msgid "Latency"
+msgstr ""
+
+msgid "Avg Processing"
+msgstr ""
+
+msgid "Top statistics are unavailable."
+msgstr ""
+
+msgid "No data available"
+msgstr ""
+
+msgid "Top Queried Domains"
+msgstr ""
+
+msgid "Top Blocked Domains"
+msgstr ""
+
+msgid "Rule added. The rust-dns service was asked to reload."
+msgstr ""
+
+msgid "Rule added, but the service could not be reloaded. Please restart rust-dns manually."
+msgstr ""
+
+msgid "Permit"
+msgstr ""
+
+msgid "Intercept"
+msgstr ""
+
+msgid "Click to view full details"
+msgstr ""
+
+msgid "Enter page number and press Enter to jump"
+msgstr ""
+
+msgid "Domain & Record"
+msgstr ""
+
+msgid "Status"
+msgstr ""
+
+msgid "Elapsed"
+msgstr ""
+
+msgid "Failed to update query logs: "
+msgstr ""
+
+msgid "Search domain or client IP..."
+msgstr ""
+
+msgid "All Queries"
+msgstr ""
+
+msgid "Resume refresh"
+msgstr ""
+
+msgid "Pause refresh"
+msgstr ""
+
+msgid "First Page / Resume"
+msgstr ""
+
+msgid "Clear query logs"
+msgstr ""
+
+msgid "Are you sure you want to clear all real-time query logs and top rankings?"
+msgstr ""
+
+msgid "Query logs cleared successfully."
+msgstr ""
+
+msgid "Failed to clear query logs: "
+msgstr ""
+
+msgid "API unavailable"
+msgstr ""
+
+msgid "Real-time Query Logs"
+msgstr ""
+
+msgid "Updating database..."
+msgstr ""
+
+msgid "Update log API is unavailable."
+msgstr ""
+
+msgid "Failed to read update log: %s"
+msgstr ""
+
+msgid "Update API is unavailable."
+msgstr ""
+
+msgid "Failed to start update."
+msgstr ""
+
+msgid "Update failed: %s"
+msgstr ""
+
+msgid "Update GeoIP & GeoSite databases"
+msgstr ""
+
+msgid "Automatically update GeoIP and GeoSite databases as well as ad filtering rules through scheduled tasks."
+msgstr ""
+
+msgid "Enable Auto Database Update"
+msgstr ""
+
+msgid "Update Cycle"
+msgstr ""
+
+msgid "Every Day"
+msgstr ""
+
+msgid "Every Monday"
+msgstr ""
+
+msgid "Every Tuesday"
+msgstr ""
+
+msgid "Every Wednesday"
+msgstr ""
+
+msgid "Every Thursday"
+msgstr ""
+
+msgid "Every Friday"
+msgstr ""
+
+msgid "Every Saturday"
+msgstr ""
+
+msgid "Every Sunday"
+msgstr ""
+
+msgid "Update Time"
+msgstr ""
+
+msgid "Little: only include Mainland China and Private IP addresses."
+msgstr ""
+
+msgid "Full: includes all Countries and Private IP addresses."
+msgstr ""
+
+msgid "Full"
+msgstr ""
+
+msgid "Little"
+msgstr ""
+
+msgid "Update data files with GitHub Proxy, leave blank to disable proxy downloads."
+msgstr ""
+
+msgid "https://gh-proxy.com"
+msgstr ""
+
+msgid "Check and update GeoData."
+msgstr ""
+
+msgid "Database Update"
+msgstr ""
+
+msgid "Check And Update"
+msgstr ""
+
+msgid "Log Backups"
+msgstr ""
+
+msgid "Number of rotated log files to keep. 0 disables rotation."
+msgstr ""
+
+msgid "API Listen Address"
+msgstr ""
+
+msgid "Address the admin API binds to. v1 only supports loopback addresses; keep 127.0.0.1 unless you know what you are doing."
+msgstr ""
+
+msgid "History Points"
+msgstr ""
+
+msgid "Maximum number of history points kept for the sparklines."
+msgstr ""
+
+msgid "Top List Size"
+msgstr ""
+
+msgid "Maximum number of entries returned for each Top list."
+msgstr ""
+
+msgid "Query Log Limit"
+msgstr ""
+
+msgid "Maximum page size accepted by the query log API."
+msgstr ""
+
+msgid "Stats Dump File"
+msgstr ""
+
+msgid "File used to persist the statistics ring buffer."
+msgstr ""
+
+msgid "Interval for automatic cache dumps (seconds). Set to 0 to disable. Dumps are written to /var/rust-dns/cache.dump."
+msgstr ""
+
+msgid "The admin API must bind to a loopback address (127.0.0.1 or ::1)."
+msgstr ""
+
+msgid "Update is still running. Check the log for progress."
+msgstr ""
+
+msgid "Search domain..."
+msgstr ""
+
+msgid "%s cleared, but the service could not be reloaded. Please restart rust-dns manually."
+msgstr ""
+
+msgid "%s added to %s, but the service could not be reloaded. Please restart rust-dns manually."
+msgstr ""
+
+msgid "%s added to %s."
+msgstr ""
+
+msgid "%s removed from %s, but the service could not be reloaded. Please restart rust-dns manually."
+msgstr ""
+
+msgid "%s removed from %s."
+msgstr ""
+
+msgid "A backup archive will be written to %s before any change. MosDNS data is not modified."
+msgstr ""
+
+msgid "Add entry"
+msgstr ""
+
+msgid "Add rule entry"
+msgstr ""
+
+msgid "Backup written to %s."
+msgstr ""
+
+msgid "Changed"
+msgstr ""
+
+msgid "Copied"
+msgstr ""
+
+msgid "Current rust-dns value"
+msgstr ""
+
+msgid "Enter a single entry"
+msgstr ""
+
+msgid "Enter a single entry. Newlines, tabs and control characters are not allowed."
+msgstr ""
+
+msgid "Entry cannot be empty."
+msgstr ""
+
+msgid "Entry contains invalid characters. Newlines, tabs and control characters are not allowed."
+msgstr ""
+
+msgid "Entry is already present in %s."
+msgstr ""
+
+msgid "Entry is too long."
+msgstr ""
+
+msgid "Entry was not found in %s."
+msgstr ""
+
+msgid "Failed to read the MosDNS import preview: %s"
+msgstr ""
+
+msgid "File"
+msgstr ""
+
+msgid "File: %s"
+msgstr ""
+
+msgid "I understand the selected MosDNS settings and rule files will be written to rust-dns."
+msgstr ""
+
+msgid "Import and reload rust-dns"
+msgstr ""
+
+msgid "Import from MosDNS"
+msgstr ""
+
+msgid "Importing MosDNS configuration"
+msgstr ""
+
+msgid "MosDNS import completed."
+msgstr ""
+
+msgid "MosDNS import failed: %s"
+msgstr ""
+
+msgid "MosDNS import preview"
+msgstr ""
+
+msgid "MosDNS option"
+msgstr ""
+
+msgid "MosDNS value"
+msgstr ""
+
+msgid "New"
+msgstr ""
+
+msgid "No MosDNS configuration was found at %s. Nothing was imported."
+msgstr ""
+
+msgid "No compatible MosDNS options were found."
+msgstr ""
+
+msgid "No rule files were found."
+msgstr ""
+
+msgid "Nothing will be written until you confirm the import."
+msgstr ""
+
+msgid "Preview and copy compatible settings and rule files from an existing MosDNS installation. A backup archive is created first and MosDNS data is never modified."
+msgstr ""
+
+msgid "Reading MosDNS configuration..."
+msgstr ""
+
+msgid "Reason"
+msgstr ""
+
+msgid "Remove entry"
+msgstr ""
+
+msgid "Remove rule entry"
+msgstr ""
+
+msgid "Rule files to copy"
+msgstr ""
+
+msgid "Size"
+msgstr ""
+
+msgid "The following options will be written to rust-dns:"
+msgstr ""
+
+msgid "The rust-dns service could not be reloaded after the import. Restart it manually."
+msgstr ""
+
+msgid "Unable to update %s: %s"
+msgstr ""
+
+msgid "Unchanged"
+msgstr ""
+
+msgid "Unknown error"
+msgstr ""
+
+msgid "Unmapped options"
+msgstr ""
+
+msgid "Warnings"
+msgstr ""
+
+msgid "rust-dns option"
+msgstr ""
+
+msgid "Imported %d option(s) and %d rule file(s)."
+msgstr ""
+
+msgid "Running"
+msgstr ""
+
+msgid "Done"
+msgstr ""
+
+msgid "Cancelled"
+msgstr ""
+
+msgid "Idle"
+msgstr ""
+
+msgid "Download"
+msgstr ""
+
+msgid "Verify"
+msgstr ""
+
+msgid "Official Cloudflare ranges"
+msgstr ""
+
+msgid "Custom IP file"
+msgstr ""
+
+msgid "Built-in fixture"
+msgstr ""
+
+msgid "IPv4"
+msgstr ""
+
+msgid "IPv6"
+msgstr ""
+
+msgid "None"
+msgstr ""
+
+msgid "Mark"
+msgstr ""
+
+msgid "Device"
+msgstr ""
+
+msgid "Dry run (fixture, no network)"
+msgstr ""
+
+msgid "IP source"
+msgstr ""
+
+msgid "IP file (under %s)"
+msgstr ""
+
+msgid "Used only with the custom IP file source. One IP or CIDR per line."
+msgstr ""
+
+msgid "Address family"
+msgstr ""
+
+msgid "Port"
+msgstr ""
+
+msgid "Threads"
+msgstr ""
+
+msgid "Ping count"
+msgstr ""
+
+msgid "Download tests"
+msgstr ""
+
+msgid "Download time (seconds)"
+msgstr ""
+
+msgid "Download bytes"
+msgstr ""
+
+msgid "Download concurrency"
+msgstr ""
+
+msgid "Download URL"
+msgstr ""
+
+msgid "Maximum candidates"
+msgstr ""
+
+msgid "Maximum latency (ms)"
+msgstr ""
+
+msgid "Maximum loss (%)"
+msgstr ""
+
+msgid "Minimum speed (Mbps)"
+msgstr ""
+
+msgid "Dry run"
+msgstr ""
+
+msgid "Uses the built-in fixture and skips all network and firewall changes."
+msgstr ""
+
+msgid "Bypass mode"
+msgstr ""
+
+msgid "mark uses SO_MARK with a temporary nft table; device binds to the WAN interface."
+msgstr ""
+
+msgid "Firewall mark"
+msgstr ""
+
+msgid "Device (WAN interface)"
+msgstr ""
+
+msgid "Source IP (optional)"
+msgstr ""
+
+msgid "Result JSON"
+msgstr ""
+
+msgid "Progress JSON"
+msgstr ""
+
+msgid "Cancel flag"
+msgstr ""
+
+msgid "Start test"
+msgstr ""
+
+msgid "Cancel test"
+msgstr ""
+
+msgid "Load last result"
+msgstr ""
+
+msgid "Filter by IP..."
+msgstr ""
+
+msgid "All results"
+msgstr ""
+
+msgid "Passed only"
+msgstr ""
+
+msgid "Failed only"
+msgstr ""
+
+msgid "Selected: %d"
+msgstr ""
+
+msgid "Apply selected IPs to hosts"
+msgstr ""
+
+msgid "Clear results"
+msgstr ""
+
+msgid "Click to sort"
+msgstr ""
+
+msgid "IP address"
+msgstr ""
+
+msgid "Family"
+msgstr ""
+
+msgid "Min latency (ms)"
+msgstr ""
+
+msgid "Avg latency (ms)"
+msgstr ""
+
+msgid "Loss (%)"
+msgstr ""
+
+msgid "Speed (Mbps)"
+msgstr ""
+
+msgid "Actions"
+msgstr ""
+
+msgid "No results yet."
+msgstr ""
+
+msgid "Run log"
+msgstr ""
+
+msgid "Cloudflare IP Optimizer"
+msgstr ""
+
+msgid "Select fast Cloudflare IPs and write them to the rust-dns hosts rules. This does not modify the system /etc/hosts or the OpenClash configuration."
+msgstr ""
+
+msgid "Test Parameters"
+msgstr ""
+
+msgid "OpenClash Bypass"
+msgstr ""
+
+msgid "Bypass verification is best-effort. If the result reports an unverified bypass, Cloudflare traffic may still go through the proxy."
+msgstr ""
+
+msgid "Output Paths (fixed)"
+msgstr ""
+
+msgid "Run Status"
+msgstr ""
+
+msgid "Target Domains"
+msgstr ""
+
+msgid "Domains"
+msgstr ""
+
+msgid "One domain per line or comma separated. Default: cloudflare.com."
+msgstr ""
+
+msgid "Checking optimizer status..."
+msgstr ""
+
+msgid "The Rust optimizer binary or its cf-optimize subcommand is missing. Install a rust-dns build that provides it."
+msgstr ""
+
+msgid "Status API error: %s"
+msgstr ""
+
+msgid "The run failed: %s"
+msgstr ""
+
+msgid "Dry-run result: these values come from the built-in fixture and are not real measurements."
+msgstr ""
+
+msgid "Bypass was not verified. Results may have traversed the proxy. Try device mode or check the OpenClash configuration."
+msgstr ""
+
+msgid "%d of %d"
+msgstr ""
+
+msgid "The run has finished. Results were reloaded."
+msgstr ""
+
+msgid "The run was cancelled."
+msgstr ""
+
+msgid "Status API is unavailable."
+msgstr ""
+
+msgid "Results API is unavailable."
+msgstr ""
+
+msgid "Last result loaded."
+msgstr ""
+
+msgid "Could not load results: %s"
+msgstr ""
+
+msgid "IP file path is empty."
+msgstr ""
+
+msgid "Optimizer API is unavailable."
+msgstr ""
+
+msgid "Started run %s."
+msgstr ""
+
+msgid "Failed to start the optimizer."
+msgstr ""
+
+msgid "Cancel API is unavailable."
+msgstr ""
+
+msgid "Cancel requested."
+msgstr ""
+
+msgid "Failed to cancel the run."
+msgstr ""
+
+msgid "No results match the current filter."
+msgstr ""
+
+msgid "No results yet. Run a test or load the last result."
+msgstr ""
+
+msgid "Passed"
+msgstr ""
+
+msgid "Failed"
+msgstr ""
+
+msgid "Write to hosts"
+msgstr ""
+
+msgid "Run ID"
+msgstr ""
+
+msgid "Started"
+msgstr ""
+
+msgid "Finished"
+msgstr ""
+
+msgid "Results"
+msgstr ""
+
+msgid "Bypass"
+msgstr ""
+
+msgid "Verified"
+msgstr ""
+
+msgid "Unverified"
+msgstr ""
+
+msgid "Egress IP"
+msgstr ""
+
+msgid "Invalid domain: %s"
+msgstr ""
+
+msgid "No target domain configured."
+msgstr ""
+
+msgid "Select at least one IP."
+msgstr ""
+
+msgid "Wait for the current run to finish before writing hosts."
+msgstr ""
+
+msgid "The following entries will be written to %s. Existing content outside the managed block is preserved."
+msgstr ""
+
+msgid "Multiple IPs per domain produce multiple hosts lines; the hosts plugin may return more than one address."
+msgstr ""
+
+msgid "Confirm writing hosts"
+msgstr ""
+
+msgid "Hosts API is unavailable."
+msgstr ""
+
+msgid "%d entries written to hosts."
+msgstr ""
+
+msgid "Failed to write hosts."
+msgstr ""
+
+msgid "This removes last.json, result.csv, progress.json, the run log and the managed block in %s. It does not touch the system /etc/hosts or the OpenClash configuration."
+msgstr ""
+
+msgid "Clear results and managed hosts block?"
+msgstr ""
+
+msgid "Clear API is unavailable."
+msgstr ""
+
+msgid "Cleared results and the managed hosts block."
+msgstr ""
+
+msgid "Failed to clear results."
+msgstr ""
+
+msgid "Wait for the current operation to finish."
+msgstr ""
+
+msgid "Wait for the current run to finish before clearing results."
+msgstr ""
+
+msgid "Only results that passed the thresholds can be written."
+msgstr ""
+
+msgid "Some selected IPs did not pass the thresholds and will be ignored."
+msgstr ""

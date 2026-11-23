@@ -1,0 +1,354 @@
+{
+  "total": 24,
+  "items": [
+    {
+      "timestamp": "2026-11-23T10:30:01.000Z",
+      "client_ip": "192.168.1.100",
+      "domain": "www.google.com",
+      "qtype": "A",
+      "status": "NOERROR",
+      "elapsed_ms": 3,
+      "answers": [
+        { "type": "A", "data": "142.250.66.100", "ttl": 112 },
+        { "type": "A", "data": "142.250.66.101", "ttl": 112 }
+      ],
+      "is_blocked": false,
+      "is_cached": true,
+      "upstream": "cache",
+      "rule": "cache"
+    },
+    {
+      "timestamp": "2026-11-23T10:29:58.000Z",
+      "client_ip": "192.168.1.101",
+      "domain": "api.github.com",
+      "qtype": "A",
+      "status": "NOERROR",
+      "elapsed_ms": 18,
+      "answers": [
+        { "type": "A", "data": "140.82.113.6", "ttl": 58 }
+      ],
+      "is_blocked": false,
+      "is_cached": false,
+      "upstream": "forward_remote",
+      "rule": "geosite:geolocation-!cn"
+    },
+    {
+      "timestamp": "2026-11-23T10:29:55.000Z",
+      "client_ip": "192.168.1.102",
+      "domain": "ads.example.com",
+      "qtype": "A",
+      "status": "NOERROR",
+      "elapsed_ms": 0,
+      "answers": [],
+      "is_blocked": true,
+      "is_cached": false,
+      "upstream": "-",
+      "rule": "blocklist"
+    },
+    {
+      "timestamp": "2026-11-23T10:29:51.000Z",
+      "client_ip": "192.168.1.50",
+      "domain": "www.youtube.com",
+      "qtype": "A",
+      "status": "NOERROR",
+      "elapsed_ms": 4,
+      "answers": [
+        { "type": "A", "data": "142.250.72.206", "ttl": 240 }
+      ],
+      "is_blocked": false,
+      "is_cached": true,
+      "upstream": "cache",
+      "rule": "cache"
+    },
+    {
+      "timestamp": "2026-11-23T10:29:47.000Z",
+      "client_ip": "10.0.0.20",
+      "domain": "tracker.example.net",
+      "qtype": "A",
+      "status": "NOERROR",
+      "elapsed_ms": 0,
+      "answers": [],
+      "is_blocked": true,
+      "is_cached": false,
+      "upstream": "-",
+      "rule": "blocklist"
+    },
+    {
+      "timestamp": "2026-11-23T10:29:43.000Z",
+      "client_ip": "192.168.1.100",
+      "domain": "cdn.jsdelivr.net",
+      "qtype": "A",
+      "status": "NOERROR",
+      "elapsed_ms": 2,
+      "answers": [
+        { "type": "A", "data": "104.16.85.20", "ttl": 1800 }
+      ],
+      "is_blocked": false,
+      "is_cached": true,
+      "upstream": "cache",
+      "rule": "cache"
+    },
+    {
+      "timestamp": "2026-11-23T10:29:40.000Z",
+      "client_ip": "192.168.1.101",
+      "domain": "fonts.gstatic.com",
+      "qtype": "AAAA",
+      "status": "NOERROR",
+      "elapsed_ms": 2,
+      "answers": [
+        { "type": "AAAA", "data": "2607:f8b0:4004:c07::5e", "ttl": 900 }
+      ],
+      "is_blocked": false,
+      "is_cached": true,
+      "upstream": "cache",
+      "rule": "cache"
+    },
+    {
+      "timestamp": "2026-11-23T10:29:36.000Z",
+      "client_ip": "192.168.1.102",
+      "domain": "api.telegram.org",
+      "qtype": "A",
+      "status": "NOERROR",
+      "elapsed_ms": 27,
+      "answers": [
+        { "type": "A", "data": "149.154.167.220", "ttl": 120 }
+      ],
+      "is_blocked": false,
+      "is_cached": false,
+      "upstream": "forward_remote",
+      "rule": "greylist"
+    },
+    {
+      "timestamp": "2026-11-23T10:29:31.000Z",
+      "client_ip": "192.168.1.50",
+      "domain": "metrics.example.org",
+      "qtype": "A",
+      "status": "NOERROR",
+      "elapsed_ms": 0,
+      "answers": [],
+      "is_blocked": true,
+      "is_cached": false,
+      "upstream": "-",
+      "rule": "blocklist"
+    },
+    {
+      "timestamp": "2026-11-23T10:29:28.000Z",
+      "client_ip": "192.168.1.51",
+      "domain": "registry.npmjs.org",
+      "qtype": "A",
+      "status": "NOERROR",
+      "elapsed_ms": 41,
+      "answers": [
+        { "type": "A", "data": "104.16.30.34", "ttl": 300 }
+      ],
+      "is_blocked": false,
+      "is_cached": false,
+      "upstream": "forward_remote",
+      "rule": "geosite:geolocation-!cn"
+    },
+    {
+      "timestamp": "2026-11-23T10:29:24.000Z",
+      "client_ip": "192.168.1.110",
+      "domain": "raw.githubusercontent.com",
+      "qtype": "A",
+      "status": "NOERROR",
+      "elapsed_ms": 56,
+      "answers": [
+        { "type": "A", "data": "185.199.108.133", "ttl": 60 }
+      ],
+      "is_blocked": false,
+      "is_cached": false,
+      "upstream": "forward_remote",
+      "rule": "geosite:geolocation-!cn"
+    },
+    {
+      "timestamp": "2026-11-23T10:29:20.000Z",
+      "client_ip": "192.168.1.111",
+      "domain": "www.baidu.com",
+      "qtype": "A",
+      "status": "NOERROR",
+      "elapsed_ms": 3,
+      "answers": [
+        { "type": "A", "data": "110.242.68.66", "ttl": 600 }
+      ],
+      "is_blocked": false,
+      "is_cached": true,
+      "upstream": "cache",
+      "rule": "cache"
+    },
+    {
+      "timestamp": "2026-11-23T10:29:16.000Z",
+      "client_ip": "192.168.1.100",
+      "domain": "nonexistent.example.com",
+      "qtype": "A",
+      "status": "NXDOMAIN",
+      "elapsed_ms": 22,
+      "answers": [],
+      "is_blocked": false,
+      "is_cached": false,
+      "upstream": "forward_local",
+      "rule": "geosite:cn"
+    },
+    {
+      "timestamp": "2026-11-23T10:29:11.000Z",
+      "client_ip": "10.0.0.21",
+      "domain": "time.android.com",
+      "qtype": "A",
+      "status": "NOERROR",
+      "elapsed_ms": 2,
+      "answers": [
+        { "type": "A", "data": "216.239.35.4", "ttl": 300 }
+      ],
+      "is_blocked": false,
+      "is_cached": true,
+      "upstream": "cache",
+      "rule": "cache"
+    },
+    {
+      "timestamp": "2026-11-23T10:29:07.000Z",
+      "client_ip": "192.168.1.101",
+      "domain": "connectivitycheck.gstatic.com",
+      "qtype": "A",
+      "status": "NOERROR",
+      "elapsed_ms": 2,
+      "answers": [
+        { "type": "A", "data": "142.250.72.4", "ttl": 120 }
+      ],
+      "is_blocked": false,
+      "is_cached": true,
+      "upstream": "cache",
+      "rule": "cache"
+    },
+    {
+      "timestamp": "2026-11-23T10:29:03.000Z",
+      "client_ip": "192.168.1.102",
+      "domain": "doubleclick.net",
+      "qtype": "A",
+      "status": "NOERROR",
+      "elapsed_ms": 0,
+      "answers": [],
+      "is_blocked": true,
+      "is_cached": false,
+      "upstream": "-",
+      "rule": "blocklist"
+    },
+    {
+      "timestamp": "2026-11-23T10:28:59.000Z",
+      "client_ip": "192.168.1.50",
+      "domain": "gateway.icloud.com",
+      "qtype": "A",
+      "status": "NOERROR",
+      "elapsed_ms": 34,
+      "answers": [
+        { "type": "A", "data": "17.248.128.34", "ttl": 300 }
+      ],
+      "is_blocked": false,
+      "is_cached": false,
+      "upstream": "forward_remote",
+      "rule": "geosite:apple"
+    },
+    {
+      "timestamp": "2026-11-23T10:28:55.000Z",
+      "client_ip": "192.168.1.51",
+      "domain": "outlook.office365.com",
+      "qtype": "A",
+      "status": "NOERROR",
+      "elapsed_ms": 29,
+      "answers": [
+        { "type": "A", "data": "52.96.108.98", "ttl": 60 }
+      ],
+      "is_blocked": false,
+      "is_cached": false,
+      "upstream": "forward_remote",
+      "rule": "geosite:microsoft"
+    },
+    {
+      "timestamp": "2026-11-23T10:28:51.000Z",
+      "client_ip": "192.168.1.110",
+      "domain": "analytics.example.com",
+      "qtype": "A",
+      "status": "NOERROR",
+      "elapsed_ms": 0,
+      "answers": [],
+      "is_blocked": true,
+      "is_cached": false,
+      "upstream": "-",
+      "rule": "blocklist"
+    },
+    {
+      "timestamp": "2026-11-23T10:28:47.000Z",
+      "client_ip": "192.168.1.111",
+      "domain": "photos.google.com",
+      "qtype": "A",
+      "status": "NOERROR",
+      "elapsed_ms": 3,
+      "answers": [
+        { "type": "A", "data": "142.250.72.78", "ttl": 240 }
+      ],
+      "is_blocked": false,
+      "is_cached": true,
+      "upstream": "cache",
+      "rule": "cache"
+    },
+    {
+      "timestamp": "2026-11-23T10:28:42.000Z",
+      "client_ip": "192.168.1.100",
+      "domain": "example.org",
+      "qtype": "AAAA",
+      "status": "NOERROR",
+      "elapsed_ms": 41,
+      "answers": [
+        { "type": "AAAA", "data": "2606:2800:220:1:248:1893:25c8:1946", "ttl": 3600 }
+      ],
+      "is_blocked": false,
+      "is_cached": false,
+      "upstream": "forward_local",
+      "rule": "geosite:cn"
+    },
+    {
+      "timestamp": "2026-11-23T10:28:38.000Z",
+      "client_ip": "10.0.0.20",
+      "domain": "dns.google",
+      "qtype": "A",
+      "status": "NOERROR",
+      "elapsed_ms": 2,
+      "answers": [
+        { "type": "A", "data": "8.8.4.4", "ttl": 300 },
+        { "type": "A", "data": "8.8.8.8", "ttl": 300 }
+      ],
+      "is_blocked": false,
+      "is_cached": true,
+      "upstream": "cache",
+      "rule": "cache"
+    },
+    {
+      "timestamp": "2026-11-23T10:28:34.000Z",
+      "client_ip": "10.0.0.21",
+      "domain": "one.one.one.one",
+      "qtype": "A",
+      "status": "NOERROR",
+      "elapsed_ms": 2,
+      "answers": [
+        { "type": "A", "data": "1.0.0.1", "ttl": 300 },
+        { "type": "A", "data": "1.1.1.1", "ttl": 300 }
+      ],
+      "is_blocked": false,
+      "is_cached": true,
+      "upstream": "cache",
+      "rule": "cache"
+    },
+    {
+      "timestamp": "2026-11-23T10:28:30.000Z",
+      "client_ip": "192.168.1.101",
+      "domain": "adservice.example.net",
+      "qtype": "A",
+      "status": "NOERROR",
+      "elapsed_ms": 0,
+      "answers": [],
+      "is_blocked": true,
+      "is_cached": false,
+      "upstream": "-",
+      "rule": "blocklist"
+    }
+  ]
+}

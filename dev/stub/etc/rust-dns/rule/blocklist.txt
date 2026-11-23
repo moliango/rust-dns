@@ -1,0 +1,2 @@
+# rust-dns blocklist rules
+# One domain per line. Matching queries are rejected.

@@ -1,0 +1,4 @@
+{
+	"config": "rust-dns",
+	"init": "rust-dns"
+}

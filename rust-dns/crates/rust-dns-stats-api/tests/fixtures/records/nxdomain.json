@@ -1,0 +1,12 @@
+{
+  "client_ip": "192.168.1.30",
+  "domain": "missing.example.",
+  "qtype": 65,
+  "status": 3,
+  "elapsed_ms": 7,
+  "answers": [],
+  "is_blocked": false,
+  "is_cached": false,
+  "upstream": "forward_remote",
+  "rule": ""
+}

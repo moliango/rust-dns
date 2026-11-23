@@ -1,0 +1,1504 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: luci-app-rust-dns\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-23 00:00+0800\n"
+"PO-Revision-Date: 2026-11-23 00:00+0800\n"
+"Last-Translator: rust-dns contributors\n"
+"Language-Team: Chinese\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+
+msgid "Rust DNS"
+msgstr "Rust DNS"
+
+msgid "RUNNING"
+msgstr "运行中"
+
+msgid "NOT RUNNING"
+msgstr "未运行"
+
+msgid "Command failed"
+msgstr "命令执行失败"
+
+msgid "Service command \"%s\" completed."
+msgstr "服务命令“%s”已执行完成。"
+
+msgid "Service command \"%s\" failed: %s"
+msgstr "服务命令“%s”执行失败：%s"
+
+msgid "Last configuration error"
+msgstr "上次配置错误"
+
+msgid "DNS cache flushed successfully."
+msgstr "DNS 缓存刷新成功。"
+
+msgid "Failed to flush the DNS cache."
+msgstr "DNS 缓存刷新失败。"
+
+msgid "Failed to flush the DNS cache: %s"
+msgstr "DNS 缓存刷新失败：%s"
+
+msgid "rust-dns is a Rust rewrite of mosdns with compatible rule files and OpenWrt integration."
+msgstr "rust-dns 是 mosdns 的 Rust 重写版本，兼容规则文件并提供 OpenWrt 集成。"
+
+msgid "Collecting data..."
+msgstr "正在收集数据..."
+
+msgid "Start"
+msgstr "启动"
+
+msgid "Stop"
+msgstr "停止"
+
+msgid "Restart"
+msgstr "重启"
+
+msgid "Enable autostart"
+msgstr "启用开机自启"
+
+msgid "Disable autostart"
+msgstr "禁用开机自启"
+
+msgid "Basic Options"
+msgstr "基础选项"
+
+msgid "Advanced Options"
+msgstr "高级选项"
+
+msgid "Cloudflare Options"
+msgstr "Cloudflare 选项"
+
+msgid "API Options"
+msgstr "API 选项"
+
+msgid "GeoData Export"
+msgstr "GeoData 导出"
+
+msgid "Enabled"
+msgstr "启用"
+
+msgid "Config File"
+msgstr "配置文件"
+
+msgid "Generated Config"
+msgstr "生成配置"
+
+msgid "Custom Config"
+msgstr "自定义配置"
+
+msgid "Listen Port"
+msgstr "监听端口"
+
+msgid "Listen Address"
+msgstr "监听地址"
+
+msgid "Log Level"
+msgstr "日志级别"
+
+msgid "Debug"
+msgstr "调试"
+
+msgid "Info"
+msgstr "信息"
+
+msgid "Warning"
+msgstr "警告"
+
+msgid "Error"
+msgstr "错误"
+
+msgid "Log File"
+msgstr "日志文件"
+
+msgid "Log File Size"
+msgstr "日志文件大小"
+
+msgid "Maximum size of the log file (in MB)."
+msgstr "日志文件的最大大小（MB）。"
+
+msgid "DNS Forward"
+msgstr "DNS 转发"
+
+msgid "Forward dnsmasq queries to rust-dns."
+msgstr "将 dnsmasq 的查询转发到 rust-dns。"
+
+msgid "DNS redirect"
+msgstr "DNS 劫持"
+
+msgid "Force all local DNS queries to rust-dns (DNS hijacking)."
+msgstr "强制将所有本地 DNS 查询转发到 rust-dns。"
+
+msgid "China DNS prefer IPv4"
+msgstr "国内 DNS 优先 IPv4"
+
+msgid "Prefer IPv4 answers for China DNS resolution of dual-stack domains."
+msgstr "双栈域名在国内 DNS 解析时优先返回 IPv4。"
+
+msgid "Remote DNS prefer IPv4"
+msgstr "远程 DNS 优先 IPv4"
+
+msgid "Prefer IPv4 answers for Remote / Streaming DNS resolution of dual-stack domains."
+msgstr "双栈域名在远程/流媒体 DNS 解析时优先返回 IPv4。"
+
+msgid "Custom China DNS"
+msgstr "自定义国内 DNS"
+
+msgid "Follow the WAN interface DNS servers unless a custom China DNS is configured."
+msgstr "未启用时跟随 WAN 接口的 DNS 服务器。"
+
+msgid "Apple domains optimization"
+msgstr "Apple 域名优化"
+
+msgid "Use the China CDN answer for Apple domains that also have a mainland CDN."
+msgstr "对同时拥有中国大陆 CDN 的 Apple 域名使用国内 CDN 地址。"
+
+msgid "China DNS server"
+msgstr "国内 DNS 服务器"
+
+msgid "Tencent Public DNS (119.29.29.29)"
+msgstr "腾讯公共 DNS（119.29.29.29）"
+
+msgid "Tencent Public DNS (119.28.28.28)"
+msgstr "腾讯公共 DNS（119.28.28.28）"
+
+msgid "Aliyun Public DNS (223.5.5.5)"
+msgstr "阿里云公共 DNS（223.5.5.5）"
+
+msgid "Aliyun Public DNS (223.6.6.6)"
+msgstr "阿里云公共 DNS（223.6.6.6）"
+
+msgid "TrafficRoute Public DNS (180.184.1.1)"
+msgstr "火山引擎 TrafficRoute 公共 DNS（180.184.1.1）"
+
+msgid "TrafficRoute Public DNS (180.184.2.2)"
+msgstr "火山引擎 TrafficRoute 公共 DNS（180.184.2.2）"
+
+msgid "Xinfeng Public DNS (114.114.114.114)"
+msgstr "信风公共 DNS（114.114.114.114）"
+
+msgid "Xinfeng Public DNS (114.114.115.115)"
+msgstr "信风公共 DNS（114.114.115.115）"
+
+msgid "Baidu Public DNS (180.76.76.76)"
+msgstr "百度公共 DNS（180.76.76.76）"
+
+msgid "Tencent Public DNS (DNS over HTTPS)"
+msgstr "腾讯公共 DNS（DNS over HTTPS）"
+
+msgid "Aliyun Public DNS (DNS over QUIC)"
+msgstr "阿里云公共 DNS（DNS over QUIC）"
+
+msgid "Aliyun Public DNS (DNS over HTTPS)"
+msgstr "阿里云公共 DNS（DNS over HTTPS）"
+
+msgid "Aliyun Public DNS (DNS over HTTP/3)"
+msgstr "阿里云公共 DNS（DNS over HTTP/3）"
+
+msgid "360 Public DNS (DNS over HTTPS)"
+msgstr "360 公共 DNS（DNS over HTTPS）"
+
+msgid "Remote DNS server"
+msgstr "远程 DNS 服务器"
+
+msgid "Cloudflare Public DNS (1.1.1.1)"
+msgstr "Cloudflare 公共 DNS（1.1.1.1）"
+
+msgid "Cloudflare Public DNS (1.0.0.1)"
+msgstr "Cloudflare 公共 DNS（1.0.0.1）"
+
+msgid "Google Public DNS (8.8.8.8)"
+msgstr "Google 公共 DNS（8.8.8.8）"
+
+msgid "Google Public DNS (8.8.4.4)"
+msgstr "Google 公共 DNS（8.8.4.4）"
+
+msgid "Quad9 Public DNS (9.9.9.9)"
+msgstr "Quad9 公共 DNS（9.9.9.9）"
+
+msgid "Quad9 Public DNS (149.112.112.112)"
+msgstr "Quad9 公共 DNS（149.112.112.112）"
+
+msgid "Cisco Public DNS (208.67.222.222)"
+msgstr "Cisco 公共 DNS（208.67.222.222）"
+
+msgid "Cisco Public DNS (208.67.220.220)"
+msgstr "Cisco 公共 DNS（208.67.220.220）"
+
+msgid "Custom Stream Media DNS"
+msgstr "自定义流媒体 DNS"
+
+msgid "Streaming media rules use this DNS server."
+msgstr "流媒体规则将使用此 DNS 服务器。"
+
+msgid "Streaming Media DNS server"
+msgstr "流媒体 DNS 服务器"
+
+msgid "Bootstrap DNS servers"
+msgstr "Bootstrap DNS 服务器"
+
+msgid "Bootstrap DNS servers resolve the IP addresses of DoH/DoT upstreams."
+msgstr "Bootstrap DNS 用于解析 DoH/DoT 上游的 IP 地址。"
+
+msgid "Configuration Editor"
+msgstr "配置编辑器"
+
+msgid "Contents of %s. The file is validated with \"rust-dns check\" before it replaces the current configuration."
+msgstr "%s 的内容。保存前会使用 \"rust-dns check\" 校验，校验通过后才会替换当前配置。"
+
+msgid "rust-dns rejected the configuration."
+msgstr "rust-dns 拒绝了该配置。"
+
+msgid "Configuration saved, but restarting the service failed: %s"
+msgstr "配置已保存，但重启服务失败：%s"
+
+msgid "Configuration validation failed: %s"
+msgstr "配置校验失败：%s"
+
+msgid "Concurrent"
+msgstr "并发数"
+
+msgid "Number of upstream DNS servers that may be queried at the same time."
+msgstr "允许同时查询的上游 DNS 服务器数量。"
+
+msgid "Idle Timeout"
+msgstr "空闲超时"
+
+msgid "DoH/TCP/DoT connection multiplexing idle timeout (seconds)."
+msgstr "DoH/TCP/DoT 连接复用空闲超时（秒）。"
+
+msgid "TCP/DoT Connection Multiplexing"
+msgstr "TCP/DoT 连接复用"
+
+msgid "Enable RFC 7766 query pipelining for TCP/DoT connections."
+msgstr "为 TCP/DoT 连接启用 RFC 7766 查询流水线。"
+
+msgid "Disable TLS Certificate Check"
+msgstr "禁用 TLS 证书校验"
+
+msgid "Skip TLS certificate validation for upstream servers. Use only when the system time or CA store is broken."
+msgstr "跳过上游服务器的 TLS 证书校验。仅在系统时间或 CA 证书存储异常时使用。"
+
+msgid "Enable EDNS Client Subnet"
+msgstr "启用 EDNS 客户端子网"
+
+msgid "ECS IP Address"
+msgstr "ECS IP 地址"
+
+msgid "IP address used for remote upstream ECS. The /24 subnet is sent to the upstream."
+msgstr "用于远程上游 ECS 的 IP 地址，将向上游发送其 /24 子网。"
+
+msgid "Prevent DNS Leaks"
+msgstr "防止 DNS 泄漏"
+
+msgid "Force the fallback policy to use the remote DNS upstream."
+msgstr "强制 fallback 策略使用远程 DNS 上游。"
+
+msgid "Enable DNS Cache"
+msgstr "启用 DNS 缓存"
+
+msgid "DNS Cache Size"
+msgstr "DNS 缓存容量"
+
+msgid "Lazy Cache TTL"
+msgstr "惰性缓存 TTL"
+
+msgid "How long expired cache entries stay usable (seconds). Set to 0 to disable lazy caching."
+msgstr "过期缓存条目可继续使用的时长（秒）。设为 0 可禁用惰性缓存。"
+
+msgid "Cache Prefetching"
+msgstr "缓存预取"
+
+msgid "Refresh hot cache entries in the background before they expire."
+msgstr "在热点缓存条目过期前后台刷新。"
+
+msgid "Prefetch Before Expire"
+msgstr "过期前预取"
+
+msgid "Prefetch when the remaining TTL is below this value (seconds)."
+msgstr "剩余 TTL 低于该值时触发预取（秒）。"
+
+msgid "Prefetch Min Hits"
+msgstr "预取最小命中数"
+
+msgid "Minimum cache hits since the last refresh before a prefetch is triggered."
+msgstr "自上次刷新以来触发预取所需的最小缓存命中次数。"
+
+msgid "Prefetch Scan Interval"
+msgstr "预取扫描间隔"
+
+msgid "Interval between background cache scans (seconds)."
+msgstr "后台扫描缓存的间隔（秒）。"
+
+msgid "Cache Dump"
+msgstr "缓存转储"
+
+msgid "Persist the cache and reload it on the next startup."
+msgstr "持久化缓存并在下次启动时重新加载。"
+
+msgid "Auto Save Cache Interval"
+msgstr "缓存自动保存间隔"
+
+msgid "Minimum TTL"
+msgstr "最小 TTL"
+
+msgid "Clamp the minimum DNS answer TTL (seconds). 0 disables clamping."
+msgstr "限制 DNS 应答的最小 TTL（秒）。0 表示不限制。"
+
+msgid "Maximum TTL"
+msgstr "最大 TTL"
+
+msgid "Clamp the maximum DNS answer TTL (seconds). 0 disables clamping."
+msgstr "限制 DNS 应答的最大 TTL（秒）。0 表示不限制。"
+
+msgid "Disable RR Type 65 (HTTPS/SVCB)"
+msgstr "禁用 RR 类型 65（HTTPS/SVCB）"
+
+msgid "Block HTTPS/SVCB records and force A/AAAA answers only."
+msgstr "拦截 HTTPS/SVCB 记录，仅返回 A/AAAA 记录。"
+
+msgid "Enable DNS Adblock"
+msgstr "启用 DNS 广告过滤"
+
+msgid "Adblock Source"
+msgstr "广告过滤规则来源"
+
+msgid "Local files and domain lists are supported, for example file:///var/rust-dns/example.txt."
+msgstr "支持本地文件与域名列表，例如 file:///var/rust-dns/example.txt。"
+
+msgid "Rewrite answers that match Cloudflare IP ranges to a custom IP (experimental)."
+msgstr "将匹配 Cloudflare IP 段的应答改写为自定义 IP（实验性）。"
+
+msgid "Custom IP"
+msgstr "自定义 IP"
+
+msgid "Cloudflare IP Ranges"
+msgstr "Cloudflare IP 段"
+
+msgid "The CIDR list is maintained by the rust-dns service package in %s and can be refreshed by the Cloudflare optimizer."
+msgstr "CIDR 列表由 rust-dns 服务包维护于 %s，可通过 Cloudflare 优选工具刷新。"
+
+msgid "API Listen Port"
+msgstr "API 监听端口"
+
+msgid "Enable Stats Collector"
+msgstr "启用统计采集器"
+
+msgid "Ring Buffer Capacity"
+msgstr "环形缓冲区容量"
+
+msgid "Query log ring buffer capacity (FIFO overwrite). Larger values use more memory."
+msgstr "查询日志环形缓冲区容量（FIFO 覆盖）。容量越大内存占用越高。"
+
+msgid "Stats Dump"
+msgstr "统计数据转储"
+
+msgid "Persist query statistics and logs and reload them on the next startup."
+msgstr "持久化查询统计与日志，并在下次启动时重新加载。"
+
+msgid "Auto Save Stats Interval"
+msgstr "统计数据自动保存间隔"
+
+msgid "Security Notice"
+msgstr "安全提示"
+
+msgid "The admin API is bound to 127.0.0.1 by the rust-dns service. Do not expose the API port to untrusted networks."
+msgstr "rust-dns 服务将管理 API 绑定在 127.0.0.1。请勿将 API 端口暴露到不可信网络。"
+
+msgid "Flushing the cache removes all cached DNS records."
+msgstr "刷新缓存将清除所有已缓存的 DNS 记录。"
+
+msgid "Flush DNS Cache"
+msgstr "刷新 DNS 缓存"
+
+msgid "GeoSite Tags"
+msgstr "GeoSite 分类"
+
+msgid "GeoSite categories to export. Multiple tags are allowed."
+msgstr "需要导出的 GeoSite 分类，可添加多个。"
+
+msgid "Export directory: /var/rust-dns"
+msgstr "导出目录：/var/rust-dns"
+
+msgid "GeoIP Tags"
+msgstr "GeoIP 分类"
+
+msgid "GeoIP categories to export. Multiple tags are allowed."
+msgstr "需要导出的 GeoIP 分类，可添加多个。"
+
+msgid "GeoData Notice"
+msgstr "GeoData 提示"
+
+msgid "GeoData export is performed by the rust-dns update tool from v2ray-geosite/v2ray-geoip data. The Update page manages the source archives."
+msgstr "GeoData 导出由 rust-dns 更新工具从 v2ray-geosite/v2ray-geoip 数据执行，数据源由“数据库更新”页面管理。"
+
+msgid "Basic Settings"
+msgstr "基础设置"
+
+msgid "Rules"
+msgstr "规则"
+
+msgid "Geodata Update"
+msgstr "数据库更新"
+
+msgid "Statistics"
+msgstr "统计"
+
+msgid "Logs"
+msgstr "日志"
+
+msgid "Rule Settings"
+msgstr "规则设置"
+
+msgid "The list of rules only apply to 'Default Config' profiles."
+msgstr "规则列表仅适用于“生成配置”模式。"
+
+msgid "White Lists"
+msgstr "白名单"
+
+msgid "Block Lists"
+msgstr "黑名单"
+
+msgid "Grey Lists"
+msgstr "灰名单"
+
+msgid "DDNS Lists"
+msgstr "DDNS 列表"
+
+msgid "Hosts"
+msgstr "Hosts"
+
+msgid "Redirect"
+msgstr "重定向"
+
+msgid "Block PTR"
+msgstr "拦截 PTR"
+
+msgid "Streaming Media"
+msgstr "流媒体"
+
+msgid "Log Data"
+msgstr "日志数据"
+
+msgid "Clear logs"
+msgstr "清空日志"
+
+msgid "No log data."
+msgstr "暂无日志。"
+
+msgid "Refresh every %s seconds."
+msgstr "每 %s 秒刷新。"
+
+msgid "Updating Database..."
+msgstr "正在更新数据库..."
+
+msgid "Update success"
+msgstr "更新成功"
+
+msgid "Update failed"
+msgstr "更新失败"
+
+msgid "Another update is already in progress."
+msgstr "已有更新任务正在进行。"
+
+msgid "Please wait, this may take a few moments..."
+msgstr "请稍候，这可能需要一些时间..."
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "Starting update..."
+msgstr "正在开始更新..."
+
+msgid "Auto Update"
+msgstr "自动更新"
+
+msgid "GeoIP Type"
+msgstr "GeoIP 类型"
+
+msgid "GitHub Proxy"
+msgstr "GitHub 代理"
+
+msgid "Update"
+msgstr "更新"
+
+msgid "Query Log"
+msgstr "查询日志"
+
+msgid "Top Domains"
+msgstr "热门域名"
+
+msgid "Top Clients"
+msgstr "热门客户端"
+
+msgid "Top Blocked"
+msgstr "拦截排行"
+
+msgid "Total Queries"
+msgstr "总查询"
+
+msgid "Blocked"
+msgstr "已拦截"
+
+msgid "Cached"
+msgstr "已缓存"
+
+msgid "QPS"
+msgstr "QPS"
+
+msgid "Search"
+msgstr "搜索"
+
+msgid "Filter"
+msgstr "筛选"
+
+msgid "All"
+msgstr "全部"
+
+msgid "Blocked Only"
+msgstr "仅拦截"
+
+msgid "Cached Only"
+msgstr "仅缓存"
+
+msgid "Previous"
+msgstr "上一页"
+
+msgid "Next"
+msgstr "下一页"
+
+msgid "Page %d / %d (%d entries)"
+msgstr "第 %d / %d 页（共 %d 条）"
+
+msgid "No query log entries found."
+msgstr "未找到查询日志。"
+
+msgid "Query Log Details"
+msgstr "查询日志详情"
+
+msgid "Client IP"
+msgstr "客户端 IP"
+
+msgid "Time"
+msgstr "时间"
+
+msgid "Upstream"
+msgstr "上游"
+
+msgid "Rule Hit"
+msgstr "命中规则"
+
+msgid "Answers"
+msgstr "应答"
+
+msgid "No DNS answer records returned."
+msgstr "未返回 DNS 应答记录。"
+
+msgid "Add to Whitelist"
+msgstr "加入白名单"
+
+msgid "Add to Blocklist"
+msgstr "加入黑名单"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Confirm"
+msgstr "确认"
+
+msgid "Domain:"
+msgstr "域名："
+
+msgid "Domain name cannot be empty."
+msgstr "域名不能为空。"
+
+msgid "Failed to update rule file: %s"
+msgstr "更新规则文件失败：%s"
+
+msgid "Add domain to the whitelist to permit DNS resolution:"
+msgstr "将域名加入白名单以允许解析："
+
+msgid "Add domain to the blocklist to block DNS resolution:"
+msgstr "将域名加入黑名单以拦截解析："
+
+msgid "Target file: %s (supports domain matching rules)"
+msgstr "目标文件：%s（支持域名匹配规则）"
+
+msgid "Unable to save contents: %s"
+msgstr "无法保存内容：%s"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Apply"
+msgstr "应用"
+
+msgid "Save & Apply"
+msgstr "保存并应用"
+
+msgid "Reset"
+msgstr "重置"
+
+msgid "Statistics API is unreachable."
+msgstr "统计 API 不可达。"
+
+msgid "The statistics API is unreachable."
+msgstr "统计 API 不可达。"
+
+msgid "All levels"
+msgstr "所有级别"
+
+msgid "Trace"
+msgstr "跟踪"
+
+msgid "Showing %d of %d lines. Refresh every 5 seconds."
+msgstr "显示 %d / %d 行。每 5 秒刷新。"
+
+msgid "Log API is unavailable."
+msgstr "日志 API 不可用。"
+
+msgid "Logs cleared."
+msgstr "日志已清空。"
+
+msgid "Failed to clean logs."
+msgstr "清空日志失败。"
+
+msgid "Failed to clean logs: %s"
+msgstr "清空日志失败：%s"
+
+msgid "Are you sure you want to clear the log file? This cannot be undone."
+msgstr "确定要清空日志文件吗？此操作无法撤销。"
+
+msgid "Clear"
+msgstr "清空"
+
+msgid "Filter by keyword..."
+msgstr "按关键字筛选..."
+
+msgid "Follow tail"
+msgstr "跟随最新日志"
+
+msgid "rust-dns"
+msgstr "rust-dns"
+
+msgid "Added domain names always permit resolution using 'Local DNS' with the highest priority (one domain per line, supports domain matching rules)."
+msgstr "添加的域名将始终优先使用“本地 DNS”解析（每行一个域名，支持域名匹配规则）。"
+
+msgid "Added domain names will block DNS resolution (one domain per line, supports domain matching rules)."
+msgstr "添加的域名将拦截 DNS 解析（每行一个域名，支持域名匹配规则）。"
+
+msgid "Added domain names will always use 'Remote DNS' for resolution (one domain per line, supports domain matching rules)."
+msgstr "添加的域名将始终使用“远程 DNS”解析（每行一个域名，支持域名匹配规则）。"
+
+msgid "Added domain names will always use 'Local DNS' for resolution with a forced TTL of 5 seconds and will not be cached (one domain per line, supports domain matching rules)."
+msgstr "添加的域名将始终使用“本地 DNS”解析，TTL 强制为 5 秒且不缓存（每行一个域名，支持域名匹配规则）。"
+
+msgid "Custom hosts rewrite, for example: baidu.com 10.0.0.1 (one rule per line, supports domain matching rules)."
+msgstr "自定义 Hosts 改写，例如：baidu.com 10.0.0.1（每行一条规则，支持域名匹配规则）。"
+
+msgid "Redirect requests for one domain to another, for example: baidu.com qq.com (one rule per line)."
+msgstr "将一个域名的请求重定向到另一个域名，例如：baidu.com qq.com（每行一条规则）。"
+
+msgid "Added domain names will block PTR requests (one domain per line, supports domain matching rules)."
+msgstr "添加的域名将拦截 PTR 请求（每行一个域名，支持域名匹配规则）。"
+
+msgid "When 'Custom Stream Media DNS' is enabled, added domains always use the streaming media DNS server for resolution (one domain per line, supports domain matching rules)."
+msgstr "启用“自定义流媒体 DNS”后，添加的域名将始终使用流媒体 DNS 服务器解析（每行一个域名，支持域名匹配规则）。"
+
+msgid "Rules saved. The rust-dns service was asked to reload."
+msgstr "规则已保存，已请求 rust-dns 服务重新加载。"
+
+msgid "Rules saved, but the service could not be reloaded. Please restart rust-dns manually."
+msgstr "规则已保存，但无法重新加载服务。请手动重启 rust-dns。"
+
+msgid "The rule files below are used by the generated configuration. One entry per line."
+msgstr "以下规则文件用于生成的配置。每行一条。"
+
+msgid "Saving with \"Save & Apply\" writes every edited file and reloads the rust-dns service."
+msgstr "使用“保存并应用”将写入所有已编辑文件并重新加载 rust-dns 服务。"
+
+msgid "Clear this file"
+msgstr "清空此文件"
+
+msgid "Clear rule file"
+msgstr "清空规则文件"
+
+msgid "Are you sure you want to clear %s? This cannot be undone."
+msgstr "确定要清空 %s 吗？此操作无法撤销。"
+
+msgid "%s cleared, reloading the page."
+msgstr "%s 已清空，正在刷新页面。"
+
+msgid "Failed to save rules: %s"
+msgstr "保存规则失败：%s"
+
+msgid "rust-dns API is unreachable. Please ensure rust-dns is running and the stats collector is enabled."
+msgstr "rust-dns API 不可达。请确认 rust-dns 正在运行且已启用统计采集器。"
+
+msgid "● Live Auto-refresh"
+msgstr "● 实时自动刷新"
+
+msgid "❚❚ Paused by user"
+msgstr "❚❚ 用户已暂停"
+
+msgid "❚❚ Paused (Page %d)"
+msgstr "❚❚ 已暂停（第 %d 页）"
+
+msgid "● Live"
+msgstr "● 实时"
+
+msgid "Per-query speed"
+msgstr "每秒查询数"
+
+msgid "DNS Queries Total"
+msgstr "DNS 查询总数"
+
+msgid "Blocked by Filters"
+msgstr "被拦截查询"
+
+msgid "Cached Queries"
+msgstr "缓存命中查询"
+
+msgid "Average Processing Time"
+msgstr "平均处理时间"
+
+msgid "Latency"
+msgstr "延迟"
+
+msgid "Avg Processing"
+msgstr "平均处理"
+
+msgid "Top statistics are unavailable."
+msgstr "Top 统计数据不可用。"
+
+msgid "No data available"
+msgstr "暂无数据"
+
+msgid "Top Queried Domains"
+msgstr "热门查询域名"
+
+msgid "Top Blocked Domains"
+msgstr "热门拦截域名"
+
+msgid "Rule added. The rust-dns service was asked to reload."
+msgstr "规则已添加，已请求 rust-dns 服务重新加载。"
+
+msgid "Rule added, but the service could not be reloaded. Please restart rust-dns manually."
+msgstr "规则已添加，但无法重新加载服务。请手动重启 rust-dns。"
+
+msgid "Permit"
+msgstr "放行"
+
+msgid "Intercept"
+msgstr "拦截"
+
+msgid "Click to view full details"
+msgstr "点击查看完整详情"
+
+msgid "Enter page number and press Enter to jump"
+msgstr "输入页码并按回车跳转"
+
+msgid "Domain & Record"
+msgstr "域名与记录"
+
+msgid "Status"
+msgstr "状态"
+
+msgid "Elapsed"
+msgstr "耗时"
+
+msgid "Failed to update query logs: "
+msgstr "更新查询日志失败："
+
+msgid "Search domain or client IP..."
+msgstr "搜索域名或客户端 IP..."
+
+msgid "All Queries"
+msgstr "全部查询"
+
+msgid "Resume refresh"
+msgstr "恢复刷新"
+
+msgid "Pause refresh"
+msgstr "暂停刷新"
+
+msgid "First Page / Resume"
+msgstr "第一页 / 恢复"
+
+msgid "Clear query logs"
+msgstr "清空查询日志"
+
+msgid "Are you sure you want to clear all real-time query logs and top rankings?"
+msgstr "确定要清空所有实时查询日志和排行数据吗？"
+
+msgid "Query logs cleared successfully."
+msgstr "查询日志已清空。"
+
+msgid "Failed to clear query logs: "
+msgstr "清空查询日志失败："
+
+msgid "API unavailable"
+msgstr "API 不可用"
+
+msgid "Real-time Query Logs"
+msgstr "实时查询日志"
+
+msgid "Updating database..."
+msgstr "正在更新数据库..."
+
+msgid "Update log API is unavailable."
+msgstr "更新日志 API 不可用。"
+
+msgid "Failed to read update log: %s"
+msgstr "读取更新日志失败：%s"
+
+msgid "Update API is unavailable."
+msgstr "更新 API 不可用。"
+
+msgid "Failed to start update."
+msgstr "启动更新失败。"
+
+msgid "Update failed: %s"
+msgstr "更新失败：%s"
+
+msgid "Update GeoIP & GeoSite databases"
+msgstr "更新 GeoIP 与 GeoSite 数据库"
+
+msgid "Automatically update GeoIP and GeoSite databases as well as ad filtering rules through scheduled tasks."
+msgstr "通过计划任务自动更新 GeoIP、GeoSite 数据库及广告过滤规则。"
+
+msgid "Enable Auto Database Update"
+msgstr "启用数据库自动更新"
+
+msgid "Update Cycle"
+msgstr "更新周期"
+
+msgid "Every Day"
+msgstr "每天"
+
+msgid "Every Monday"
+msgstr "每周一"
+
+msgid "Every Tuesday"
+msgstr "每周二"
+
+msgid "Every Wednesday"
+msgstr "每周三"
+
+msgid "Every Thursday"
+msgstr "每周四"
+
+msgid "Every Friday"
+msgstr "每周五"
+
+msgid "Every Saturday"
+msgstr "每周六"
+
+msgid "Every Sunday"
+msgstr "每周日"
+
+msgid "Update Time"
+msgstr "更新时间"
+
+msgid "Little: only include Mainland China and Private IP addresses."
+msgstr "精简：仅包含中国大陆和私有 IP 地址。"
+
+msgid "Full: includes all Countries and Private IP addresses."
+msgstr "完整：包含所有国家和私有 IP 地址。"
+
+msgid "Full"
+msgstr "完整"
+
+msgid "Little"
+msgstr "精简"
+
+msgid "Update data files with GitHub Proxy, leave blank to disable proxy downloads."
+msgstr "使用 GitHub 代理更新数据文件，留空则禁用代理下载。"
+
+msgid "https://gh-proxy.com"
+msgstr "https://gh-proxy.com"
+
+msgid "Check and update GeoData."
+msgstr "检查并更新 GeoData。"
+
+msgid "Database Update"
+msgstr "数据库更新"
+
+msgid "Check And Update"
+msgstr "检查并更新"
+
+msgid "Log Backups"
+msgstr "日志备份数"
+
+msgid "Number of rotated log files to keep. 0 disables rotation."
+msgstr "保留的轮转日志文件数量。0 表示禁用轮转。"
+
+msgid "API Listen Address"
+msgstr "API 监听地址"
+
+msgid "Address the admin API binds to. v1 only supports loopback addresses; keep 127.0.0.1 unless you know what you are doing."
+msgstr "管理 API 绑定的地址。v1 仅支持回环地址；除非确认必要，请保持 127.0.0.1。"
+
+msgid "History Points"
+msgstr "历史数据点数"
+
+msgid "Maximum number of history points kept for the sparklines."
+msgstr "为趋势图保留的最大历史数据点数。"
+
+msgid "Top List Size"
+msgstr "Top 列表长度"
+
+msgid "Maximum number of entries returned for each Top list."
+msgstr "每个 Top 列表返回的最大条目数。"
+
+msgid "Query Log Limit"
+msgstr "查询日志上限"
+
+msgid "Maximum page size accepted by the query log API."
+msgstr "查询日志 API 接受的最大页大小。"
+
+msgid "Stats Dump File"
+msgstr "统计数据转储文件"
+
+msgid "File used to persist the statistics ring buffer."
+msgstr "用于持久化统计环形缓冲区的文件。"
+
+msgid "Interval for automatic cache dumps (seconds). Set to 0 to disable. Dumps are written to /var/rust-dns/cache.dump."
+msgstr "自动缓存转储间隔（秒）。设为 0 可禁用。转储文件写入 /var/rust-dns/cache.dump。"
+
+msgid "The admin API must bind to a loopback address (127.0.0.1 or ::1)."
+msgstr "管理 API 必须绑定到回环地址（127.0.0.1 或 ::1）。"
+
+msgid "Update is still running. Check the log for progress."
+msgstr "更新仍在进行中，请查看日志了解进度。"
+
+msgid "Search domain..."
+msgstr "搜索域名..."
+
+msgid "%s cleared, but the service could not be reloaded. Please restart rust-dns manually."
+msgstr "%s 已清空，但服务无法重载。请手动重启 rust-dns。"
+
+msgid "%s added to %s, but the service could not be reloaded. Please restart rust-dns manually."
+msgstr "%s 已添加到 %s，但服务无法重载。请手动重启 rust-dns。"
+
+msgid "%s added to %s."
+msgstr "%s 已添加到 %s。"
+
+msgid "%s removed from %s, but the service could not be reloaded. Please restart rust-dns manually."
+msgstr "%s 已从 %s 移除，但服务无法重载。请手动重启 rust-dns。"
+
+msgid "%s removed from %s."
+msgstr "%s 已从 %s 移除。"
+
+msgid "A backup archive will be written to %s before any change. MosDNS data is not modified."
+msgstr "任何更改前都会先将备份归档写入 %s。MosDNS 数据不会被修改。"
+
+msgid "Add entry"
+msgstr "添加条目"
+
+msgid "Add rule entry"
+msgstr "添加规则条目"
+
+msgid "Backup written to %s."
+msgstr "备份已写入 %s。"
+
+msgid "Changed"
+msgstr "已变更"
+
+msgid "Copied"
+msgstr "已复制"
+
+msgid "Current rust-dns value"
+msgstr "当前 rust-dns 值"
+
+msgid "Enter a single entry"
+msgstr "输入单个条目"
+
+msgid "Enter a single entry. Newlines, tabs and control characters are not allowed."
+msgstr "输入单个条目。不允许换行符、制表符和控制字符。"
+
+msgid "Entry cannot be empty."
+msgstr "条目不能为空。"
+
+msgid "Entry contains invalid characters. Newlines, tabs and control characters are not allowed."
+msgstr "条目包含无效字符。不允许换行符、制表符和控制字符。"
+
+msgid "Entry is already present in %s."
+msgstr "%s 中已存在该条目。"
+
+msgid "Entry is too long."
+msgstr "条目过长。"
+
+msgid "Entry was not found in %s."
+msgstr "在 %s 中未找到该条目。"
+
+msgid "Failed to read the MosDNS import preview: %s"
+msgstr "读取 MosDNS 导入预览失败：%s"
+
+msgid "File"
+msgstr "文件"
+
+msgid "File: %s"
+msgstr "文件：%s"
+
+msgid "I understand the selected MosDNS settings and rule files will be written to rust-dns."
+msgstr "我了解所选 MosDNS 设置和规则文件将被写入 rust-dns。"
+
+msgid "Import and reload rust-dns"
+msgstr "导入并重载 rust-dns"
+
+msgid "Import from MosDNS"
+msgstr "从 MosDNS 导入"
+
+msgid "Importing MosDNS configuration"
+msgstr "正在导入 MosDNS 配置"
+
+msgid "MosDNS import completed."
+msgstr "MosDNS 导入完成。"
+
+msgid "MosDNS import failed: %s"
+msgstr "MosDNS 导入失败：%s"
+
+msgid "MosDNS import preview"
+msgstr "MosDNS 导入预览"
+
+msgid "MosDNS option"
+msgstr "MosDNS 选项"
+
+msgid "MosDNS value"
+msgstr "MosDNS 值"
+
+msgid "New"
+msgstr "新增"
+
+msgid "No MosDNS configuration was found at %s. Nothing was imported."
+msgstr "未在 %s 找到 MosDNS 配置。未导入任何内容。"
+
+msgid "No compatible MosDNS options were found."
+msgstr "未找到兼容的 MosDNS 选项。"
+
+msgid "No rule files were found."
+msgstr "未找到规则文件。"
+
+msgid "Nothing will be written until you confirm the import."
+msgstr "在确认导入之前不会写入任何内容。"
+
+msgid "Preview and copy compatible settings and rule files from an existing MosDNS installation. A backup archive is created first and MosDNS data is never modified."
+msgstr "预览并复制现有 MosDNS 安装中兼容的设置和规则文件。系统会先创建备份归档，且绝不修改 MosDNS 数据。"
+
+msgid "Reading MosDNS configuration..."
+msgstr "正在读取 MosDNS 配置..."
+
+msgid "Reason"
+msgstr "原因"
+
+msgid "Remove entry"
+msgstr "移除条目"
+
+msgid "Remove rule entry"
+msgstr "移除规则条目"
+
+msgid "Rule files to copy"
+msgstr "要复制的规则文件"
+
+msgid "Size"
+msgstr "大小"
+
+msgid "The following options will be written to rust-dns:"
+msgstr "以下选项将被写入 rust-dns："
+
+msgid "The rust-dns service could not be reloaded after the import. Restart it manually."
+msgstr "导入后无法重载 rust-dns 服务。请手动重启。"
+
+msgid "Unable to update %s: %s"
+msgstr "无法更新 %s：%s"
+
+msgid "Unchanged"
+msgstr "未变更"
+
+msgid "Unknown error"
+msgstr "未知错误"
+
+msgid "Unmapped options"
+msgstr "未映射的选项"
+
+msgid "Warnings"
+msgstr "警告"
+
+msgid "rust-dns option"
+msgstr "rust-dns 选项"
+
+msgid "Imported %d option(s) and %d rule file(s)."
+msgstr "已导入 %d 个选项和 %d 个规则文件。"
+
+msgid "Running"
+msgstr "运行中"
+
+msgid "Done"
+msgstr "已完成"
+
+msgid "Cancelled"
+msgstr "已取消"
+
+msgid "Idle"
+msgstr "空闲"
+
+msgid "Download"
+msgstr "下载"
+
+msgid "Verify"
+msgstr "校验"
+
+msgid "Official Cloudflare ranges"
+msgstr "Cloudflare 官方网段"
+
+msgid "Custom IP file"
+msgstr "自定义 IP 文件"
+
+msgid "Built-in fixture"
+msgstr "内置测试数据"
+
+msgid "IPv4"
+msgstr "IPv4"
+
+msgid "IPv6"
+msgstr "IPv6"
+
+msgid "None"
+msgstr "无"
+
+msgid "Mark"
+msgstr "Mark 标记"
+
+msgid "Device"
+msgstr "设备"
+
+msgid "Dry run (fixture, no network)"
+msgstr "试运行（fixture，不联网）"
+
+msgid "IP source"
+msgstr "IP 来源"
+
+msgid "IP file (under %s)"
+msgstr "IP 文件（位于 %s）"
+
+msgid "Used only with the custom IP file source. One IP or CIDR per line."
+msgstr "仅用于自定义 IP 文件来源。每行一个 IP 或 CIDR。"
+
+msgid "Address family"
+msgstr "地址族"
+
+msgid "Port"
+msgstr "端口"
+
+msgid "Threads"
+msgstr "线程数"
+
+msgid "Ping count"
+msgstr "Ping 次数"
+
+msgid "Download tests"
+msgstr "下载测试数"
+
+msgid "Download time (seconds)"
+msgstr "下载时长（秒）"
+
+msgid "Download bytes"
+msgstr "下载字节数"
+
+msgid "Download concurrency"
+msgstr "下载并发数"
+
+msgid "Download URL"
+msgstr "下载 URL"
+
+msgid "Maximum candidates"
+msgstr "最大候选数"
+
+msgid "Maximum latency (ms)"
+msgstr "最大延迟（毫秒）"
+
+msgid "Maximum loss (%)"
+msgstr "最大丢包率（%）"
+
+msgid "Minimum speed (Mbps)"
+msgstr "最低速度（Mbps）"
+
+msgid "Dry run"
+msgstr "试运行"
+
+msgid "Uses the built-in fixture and skips all network and firewall changes."
+msgstr "使用内置测试数据，跳过所有网络和防火墙变更。"
+
+msgid "Bypass mode"
+msgstr "绕行模式"
+
+msgid "mark uses SO_MARK with a temporary nft table; device binds to the WAN interface."
+msgstr "mark 使用 SO_MARK 和临时 nft 表；device 绑定到 WAN 接口。"
+
+msgid "Firewall mark"
+msgstr "防火墙标记"
+
+msgid "Device (WAN interface)"
+msgstr "设备（WAN 接口）"
+
+msgid "Source IP (optional)"
+msgstr "源 IP（可选）"
+
+msgid "Result JSON"
+msgstr "结果 JSON"
+
+msgid "Progress JSON"
+msgstr "进度 JSON"
+
+msgid "Cancel flag"
+msgstr "取消标记文件"
+
+msgid "Start test"
+msgstr "开始测速"
+
+msgid "Cancel test"
+msgstr "取消测速"
+
+msgid "Load last result"
+msgstr "加载上次结果"
+
+msgid "Filter by IP..."
+msgstr "按 IP 过滤..."
+
+msgid "All results"
+msgstr "全部结果"
+
+msgid "Passed only"
+msgstr "仅通过"
+
+msgid "Failed only"
+msgstr "仅失败"
+
+msgid "Selected: %d"
+msgstr "已选择：%d"
+
+msgid "Apply selected IPs to hosts"
+msgstr "将选中 IP 写入 hosts"
+
+msgid "Clear results"
+msgstr "清除结果"
+
+msgid "Click to sort"
+msgstr "点击排序"
+
+msgid "IP address"
+msgstr "IP 地址"
+
+msgid "Family"
+msgstr "协议族"
+
+msgid "Min latency (ms)"
+msgstr "最小延迟（毫秒）"
+
+msgid "Avg latency (ms)"
+msgstr "平均延迟（毫秒）"
+
+msgid "Loss (%)"
+msgstr "丢包率（%）"
+
+msgid "Speed (Mbps)"
+msgstr "速度（Mbps）"
+
+msgid "Actions"
+msgstr "操作"
+
+msgid "No results yet."
+msgstr "暂无结果。"
+
+msgid "Run log"
+msgstr "运行日志"
+
+msgid "Cloudflare IP Optimizer"
+msgstr "Cloudflare 优选"
+
+msgid "Select fast Cloudflare IPs and write them to the rust-dns hosts rules. This does not modify the system /etc/hosts or the OpenClash configuration."
+msgstr "选择快速的 Cloudflare IP 并写入 rust-dns hosts 规则。不会修改系统 /etc/hosts 或 OpenClash 配置。"
+
+msgid "Test Parameters"
+msgstr "测速参数"
+
+msgid "OpenClash Bypass"
+msgstr "OpenClash 绕行"
+
+msgid "Bypass verification is best-effort. If the result reports an unverified bypass, Cloudflare traffic may still go through the proxy."
+msgstr "绕行校验为尽力而为。若结果报告未验证绕行，Cloudflare 流量仍可能经过代理。"
+
+msgid "Output Paths (fixed)"
+msgstr "输出路径（固定）"
+
+msgid "Run Status"
+msgstr "运行状态"
+
+msgid "Target Domains"
+msgstr "目标域名"
+
+msgid "Domains"
+msgstr "域名"
+
+msgid "One domain per line or comma separated. Default: cloudflare.com."
+msgstr "每行一个域名或用逗号分隔。默认：cloudflare.com。"
+
+msgid "Checking optimizer status..."
+msgstr "正在检查优选器状态..."
+
+msgid "The Rust optimizer binary or its cf-optimize subcommand is missing. Install a rust-dns build that provides it."
+msgstr "Rust 优选器可执行文件或 cf-optimize 子命令不存在。请安装提供该功能的 rust-dns 构建。"
+
+msgid "Status API error: %s"
+msgstr "状态 API 错误：%s"
+
+msgid "The run failed: %s"
+msgstr "运行失败：%s"
+
+msgid "Dry-run result: these values come from the built-in fixture and are not real measurements."
+msgstr "试运行结果：这些数值来自内置测试数据，并非真实测量值。"
+
+msgid "Bypass was not verified. Results may have traversed the proxy. Try device mode or check the OpenClash configuration."
+msgstr "绕行未经验证。结果可能经过代理。请尝试 device 模式或检查 OpenClash 配置。"
+
+msgid "%d of %d"
+msgstr "%d / %d"
+
+msgid "The run has finished. Results were reloaded."
+msgstr "运行已完成，结果已重新加载。"
+
+msgid "The run was cancelled."
+msgstr "运行已取消。"
+
+msgid "Status API is unavailable."
+msgstr "状态 API 不可用。"
+
+msgid "Results API is unavailable."
+msgstr "结果 API 不可用。"
+
+msgid "Last result loaded."
+msgstr "上次结果已加载。"
+
+msgid "Could not load results: %s"
+msgstr "无法加载结果：%s"
+
+msgid "IP file path is empty."
+msgstr "IP 文件路径为空。"
+
+msgid "Optimizer API is unavailable."
+msgstr "优选器 API 不可用。"
+
+msgid "Started run %s."
+msgstr "已开始运行 %s。"
+
+msgid "Failed to start the optimizer."
+msgstr "启动优选器失败。"
+
+msgid "Cancel API is unavailable."
+msgstr "取消 API 不可用。"
+
+msgid "Cancel requested."
+msgstr "已请求取消。"
+
+msgid "Failed to cancel the run."
+msgstr "取消运行失败。"
+
+msgid "No results match the current filter."
+msgstr "没有符合当前过滤条件的结果。"
+
+msgid "No results yet. Run a test or load the last result."
+msgstr "暂无结果。请运行测速或加载上次结果。"
+
+msgid "Passed"
+msgstr "通过"
+
+msgid "Failed"
+msgstr "失败"
+
+msgid "Write to hosts"
+msgstr "写入 hosts"
+
+msgid "Run ID"
+msgstr "运行 ID"
+
+msgid "Started"
+msgstr "开始时间"
+
+msgid "Finished"
+msgstr "结束时间"
+
+msgid "Results"
+msgstr "结果数"
+
+msgid "Bypass"
+msgstr "绕行"
+
+msgid "Verified"
+msgstr "已验证"
+
+msgid "Unverified"
+msgstr "未验证"
+
+msgid "Egress IP"
+msgstr "出口 IP"
+
+msgid "Invalid domain: %s"
+msgstr "无效域名：%s"
+
+msgid "No target domain configured."
+msgstr "未配置目标域名。"
+
+msgid "Select at least one IP."
+msgstr "请至少选择一个 IP。"
+
+msgid "Wait for the current run to finish before writing hosts."
+msgstr "请等待当前运行结束后再写入 hosts。"
+
+msgid "The following entries will be written to %s. Existing content outside the managed block is preserved."
+msgstr "以下条目将写入 %s。受管块之外的内容会保留。"
+
+msgid "Multiple IPs per domain produce multiple hosts lines; the hosts plugin may return more than one address."
+msgstr "每个域名多个 IP 会产生多条 hosts 记录；hosts 插件可能返回多个地址。"
+
+msgid "Confirm writing hosts"
+msgstr "确认写入 hosts"
+
+msgid "Hosts API is unavailable."
+msgstr "Hosts API 不可用。"
+
+msgid "%d entries written to hosts."
+msgstr "已向 hosts 写入 %d 条记录。"
+
+msgid "Failed to write hosts."
+msgstr "写入 hosts 失败。"
+
+msgid "This removes last.json, result.csv, progress.json, the run log and the managed block in %s. It does not touch the system /etc/hosts or the OpenClash configuration."
+msgstr "将删除 last.json、result.csv、progress.json、运行日志以及 %s 中的受管块。不会修改系统 /etc/hosts 或 OpenClash 配置。"
+
+msgid "Clear results and managed hosts block?"
+msgstr "清除结果和受管 hosts 块？"
+
+msgid "Clear API is unavailable."
+msgstr "清除 API 不可用。"
+
+msgid "Cleared results and the managed hosts block."
+msgstr "已清除结果和受管 hosts 块。"
+
+msgid "Failed to clear results."
+msgstr "清除结果失败。"
+
+msgid "Wait for the current operation to finish."
+msgstr "请等待当前操作完成。"
+
+msgid "Wait for the current run to finish before clearing results."
+msgstr "请等待当前运行结束后再清除结果。"
+
+msgid "Only results that passed the thresholds can be written."
+msgstr "只有通过阈值的结果才能写入。"
+
+msgid "Some selected IPs did not pass the thresholds and will be ignored."
+msgstr "部分选中的 IP 未通过阈值，将被忽略。"

@@ -1,0 +1,2 @@
+# rust-dns greylist rules
+# One domain per line. Domains here always use the remote DNS upstream.

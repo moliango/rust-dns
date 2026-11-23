@@ -1,0 +1,14 @@
+{
+  "client_ip": "192.168.1.10",
+  "domain": "Example.COM.",
+  "qtype": 1,
+  "status": 0,
+  "elapsed_ms": 10,
+  "answers": [
+    {"type": 1, "data": "93.184.216.34", "ttl": 300}
+  ],
+  "is_blocked": false,
+  "is_cached": false,
+  "upstream": "forward_remote",
+  "rule": ""
+}

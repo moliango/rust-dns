@@ -1,0 +1,14 @@
+{
+  "client_ip": "192.168.1.20",
+  "domain": "cached.example",
+  "qtype": 28,
+  "status": 0,
+  "elapsed_ms": 0,
+  "answers": [
+    {"type": 28, "data": "2606:2800:220:1:248:1893:25c8:1946", "ttl": 60}
+  ],
+  "is_blocked": false,
+  "is_cached": true,
+  "upstream": "cache",
+  "rule": ""
+}

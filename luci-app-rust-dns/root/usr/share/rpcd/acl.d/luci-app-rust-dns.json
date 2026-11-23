@@ -1,0 +1,70 @@
+{
+	"luci-app-rust-dns": {
+		"description": "Grant access to luci-app-rust-dns",
+		"read": {
+			"file": {
+				"/etc/config/mosdns": [ "read" ],
+				"/etc/hosts": [ "read" ],
+				"/etc/init.d/rust-dns": [ "exec" ],
+				"/etc/mosdns/rule/*": [ "read" ],
+				"/etc/rust-dns/*": [ "read" ],
+				"/etc/rust-dns/rule/*": [ "read" ],
+				"/etc/rust-dns/rule/hosts.txt": [ "read" ],
+				"/tmp/dhcp.leases": [ "read" ],
+				"/tmp/hosts/*": [ "read" ],
+				"/tmp/odhcpd.leases": [ "read" ],
+				"/var/etc/rust-dns/*": [ "read" ],
+				"/usr/bin/rust-dns": [ "exec" ],
+				"/usr/share/rust-dns/rust-dns.uc": [ "read" ],
+				"/var/log/rust-dns*": [ "read" ],
+				"/var/rust-dns/*": [ "read" ],
+				"/var/rust-dns/cf-optimizer/*": [ "read" ]
+			},
+			"ubus": {
+				"file": [ "read" ],
+				"service": [ "list" ],
+				"luci.rust_dns": [
+					"get_version",
+					"get_stats",
+					"get_history",
+					"get_top",
+					"get_logs",
+					"print_log",
+					"get_leases",
+					"get_update_log",
+					"import_mosdns_preview",
+					"cf_status",
+					"cf_results"
+				]
+			},
+			"uci": [ "rust-dns" ]
+		},
+		"write": {
+			"file": {
+				"/etc/init.d/rust-dns": [ "exec" ],
+				"/etc/rust-dns/*": [ "write" ],
+				"/etc/rust-dns/rule/*": [ "write" ],
+				"/etc/rust-dns/rule/hosts.txt": [ "write" ],
+				"/usr/bin/rust-dns": [ "exec" ],
+				"/var/log/rust-dns*": [ "write" ],
+				"/var/rust-dns/*": [ "write" ],
+				"/var/rust-dns/cf-optimizer/*": [ "write" ]
+			},
+			"ubus": {
+				"file": [ "write", "exec" ],
+				"luci.rust_dns": [
+					"clear_query_logs",
+					"flush_cache",
+					"clean_log",
+					"start_update",
+					"import_mosdns_apply",
+					"cf_start",
+					"cf_cancel",
+					"cf_apply_hosts",
+					"cf_clear"
+				]
+			},
+			"uci": [ "rust-dns" ]
+		}
+	}
+}

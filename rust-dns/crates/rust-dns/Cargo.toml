@@ -1,0 +1,23 @@
+[package]
+name = "rust-dns"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "rust-dns"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+clap.workspace = true
+hickory-proto.workspace = true
+rust-dns-cf-optimizer = { path = "../rust-dns-cf-optimizer" }
+rust-dns-core = { path = "../rust-dns-core" }
+rust-dns-stats-api = { path = "../rust-dns-stats-api" }
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml_ng = "0.10"
+tokio.workspace = true

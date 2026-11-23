@@ -1,0 +1,9 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# Convenience wrapper for local development.  The canonical stub lives with
+# the service package at openwrt/rust-dns/dev/stub/rust-dns and is never
+# installed on a device.
+
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+exec "$HERE/../../openwrt/rust-dns/dev/stub/rust-dns" "$@"

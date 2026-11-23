@@ -1,0 +1,2 @@
+# rust-dns redirect rules
+# One "from-domain to-domain" pair per line, for example: example.com example.net

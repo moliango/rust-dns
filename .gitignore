@@ -1,0 +1,30 @@
+# Rust build output
+/target/
+**/target/
+/rust-dns/dist/
+/dist/
+
+# Python caches
+**/__pycache__/
+**/*.pyc
+
+# Agent / editor tooling (local only)
+.claude/
+.codex/
+.cursor/
+.agents/
+
+# Trellis planning/session data and agent instructions (internal)
+.trellis/
+AGENTS.md
+.gitattributes
+
+# Local secrets / transient files
+.env
+.env.*
+*.pem
+*.key
+*.log
+*.tmp
+*.bak
+.DS_Store

@@ -1,0 +1,2582 @@
+#!/usr/bin/env ucode
+// SPDX-License-Identifier: GPL-3.0-only
+//
+// rpcd backend for luci-app-rust-dns.
+//
+// This module is the only bridge between the LuCI pages and the rust-dns admin
+// API. The API is expected to listen on a loopback address (api_listen_address,
+// default 127.0.0.1); this process proxies the handful of endpoints the pages
+// need and reads the log/lease files locally.
+//
+// The structure and several helpers are adapted from luci-app-mosdns
+// (root/usr/share/rpcd/ucode/luci.mosdns), Copyright (C) 2023-2026
+// sbwml <admin@cooluc.com>, GPL-3.0. See the repository LICENSE.
+//
+// MOCK MODE
+// ---------
+// When the Rust admin API is not built/running yet, read-only endpoints fall
+// back to JSON fixtures. The fixtures are looked up in these fixed directories
+// (first hit wins) using a fixed file name per endpoint:
+//
+//     /var/rust-dns/mock/<name>.json
+//     /var/rust-dns/<name>.json
+//     /etc/rust-dns/mock/<name>.json
+//
+// Copy dev/mock-api/fixtures/*.json into one of these directories on the test
+// router. The fixtures themselves are never generated from user input.
+//
+// SECURITY
+// --------
+// The only values interpolated into a shell command are a validated host/port,
+// whitelisted endpoint paths, sanitized integer/domain search arguments, and
+// fixed import paths plus a generated timestamped backup name. No raw user
+// input is ever passed to popen()/exec.
+
+'use strict';
+
+import { popen, stat, readfile, open, lsdir, mkdir, rename, chmod, unlink } from 'fs';
+import { cursor } from 'uci';
+
+const API_PREFIX = '/api/v1';
+const DEFAULT_API_PORT = '9091';
+const DEFAULT_LOG_FILE = '/var/log/rust-dns.log';
+const LOG_MAX_BYTES = 262144;
+const UPDATE_SCRIPT = '/usr/share/rust-dns/rust-dns.uc';
+const UPDATE_LOG = '/var/rust-dns/update.log';
+const UPDATE_LOCK = '/var/lock/rust-dns_update.lock';
+const MOCK_DIRS = [ '/var/rust-dns/mock', '/var/rust-dns', '/etc/rust-dns/mock' ];
+
+// Cloudflare IP optimizer (design 11-23-cloudflare-ip-optimizer §2, §5, §6.2).
+// Every path below is fixed: the UI cannot choose an output, progress, cancel
+// or hosts file. The only user-controlled path is the IP input file, and it is
+// restricted to a plain file name inside CF_DIR.
+const RUST_DNS_BIN = '/usr/bin/rust-dns';
+const CF_DIR = '/var/rust-dns/cf-optimizer';
+const CF_OUTPUT = CF_DIR + '/last.json';
+const CF_CSV = CF_DIR + '/result.csv';
+const CF_PROGRESS = CF_DIR + '/progress.json';
+const CF_CANCEL = CF_DIR + '/cancel';
+const CF_LOG = CF_DIR + '/run.log';
+const CF_PID = CF_DIR + '/run.pid';
+const CF_DEFAULT_IP_FILE = CF_DIR + '/ips.txt';
+const CF_HOSTS_FILE = '/etc/rust-dns/rule/hosts.txt';
+const CF_HOSTS_BEGIN = '# BEGIN rust-dns cf-optimizer';
+const CF_HOSTS_END = '# END rust-dns cf-optimizer';
+
+// MosDNS one-click import. Every path below is fixed; values read from the
+// MosDNS UCI config are only ever written through the UCI cursor, never
+// interpolated into a shell command. MosDNS files are only read, never
+// modified or removed.
+const MOSDNS_CONFIG = '/etc/config/mosdns';
+const MOSDNS_RULE_DIR = '/etc/mosdns/rule';
+const RUST_DNS_CONFIG = '/etc/config/rust-dns';
+const RUST_DNS_RULE_DIR = '/etc/rust-dns/rule';
+const IMPORT_BACKUP_PREFIX = '/etc/rust-dns/import-backup-';
+const RUST_DNS_INIT = '/etc/init.d/rust-dns';
+
+// UCI options whose semantics are identical in MosDNS and rust-dns.
+const IMPORT_SCALAR_OPTIONS = [
+	'enabled', 'listen_port', 'listen_address', 'listen_port_api',
+	'log_level', 'log_size', 'redirect', 'local_dns_redirect',
+	'cache', 'cache_size', 'lazy_cache_ttl', 'dump_interval',
+	'concurrent', 'idle_timeout', 'enable_pipeline', 'insecure_skip_verify',
+	'minimal_ttl', 'maximum_ttl', 'prefer_ipv4_cn', 'prefer_ipv4',
+	'reject_type65', 'dns_leak', 'enable_ecs_remote', 'remote_ecs_ip',
+	'cloudflare', 'adblock', 'custom_local_dns', 'custom_stream_media_dns',
+	'bootstrap_dns', 'stats_collector', 'stats_capacity',
+	'stats_dump_file', 'stats_dump_interval',
+	'prefetch', 'prefetch_before_expire', 'prefetch_min_hits',
+	'prefetch_scan_interval', 'geo_auto_update', 'geo_update_week_time',
+	'geo_update_day_time', 'geoip_type', 'github_proxy'
+];
+
+const IMPORT_LIST_OPTIONS = [
+	'remote_dns', 'local_dns', 'stream_media_dns', 'ad_source', 'cloudflare_ip',
+	'geosite_tags', 'geoip_tags'
+];
+
+// Options that exist in MosDNS but are intentionally not imported. They are
+// reported by the preview so the user knows what was left behind.
+const IMPORT_KNOWN_OPTIONS = [];
+for (let i = 0; i < length(IMPORT_SCALAR_OPTIONS); i++)
+	push(IMPORT_KNOWN_OPTIONS, IMPORT_SCALAR_OPTIONS[i]);
+for (let i = 0; i < length(IMPORT_LIST_OPTIONS); i++)
+	push(IMPORT_KNOWN_OPTIONS, IMPORT_LIST_OPTIONS[i]);
+push(IMPORT_KNOWN_OPTIONS, 'configfile');
+push(IMPORT_KNOWN_OPTIONS, 'log_file');
+push(IMPORT_KNOWN_OPTIONS, 'dump_file');
+push(IMPORT_KNOWN_OPTIONS, 'apple_optimization');
+
+function exec_sys(cmd) {
+	let p = popen(cmd + " 2>&1", "r");
+	if (!p)
+		return { code: -1, stdout: "" };
+
+	let stdout = p.read("all");
+	let code = p.close();
+
+	if (type(stdout) == 'string')
+		stdout = replace(stdout, /^\s+|\s+$/g, '');
+
+	return { code: code, stdout: stdout || "" };
+}
+
+function parse_json_safe(str) {
+	if (!str || str == "")
+		return null;
+
+	try {
+		return json(str);
+	} catch (e) {
+		return null;
+	}
+}
+
+function to_int(value, fallback, min, max) {
+	let s = (value == null) ? '' : '' + value;
+
+	if (!match(s, /^[0-9]+$/))
+		return fallback;
+
+	let n = +s;
+
+	if (n < min)
+		n = min;
+	if (max != null && n > max)
+		n = max;
+
+	return n;
+}
+
+function sanitize_filter(f) {
+	return (f == 'blocked' || f == 'cached') ? f : 'all';
+}
+
+// Domains only need [A-Za-z0-9._-]; '*' is kept for wildcard searches. Anything
+// else is dropped so the value is safe inside a single-quoted shell argument.
+function sanitize_search(s) {
+	if (type(s) != 'string')
+		return '';
+
+	s = replace(s, /[^A-Za-z0-9._*-]/g, '');
+
+	if (length(s) > 128)
+		s = substr(s, 0, 128);
+
+	return s;
+}
+
+function sanitize_api_port(p) {
+	let s = (p == null) ? '' : '' + p;
+
+	if (length(s) <= 5 && match(s, /^[0-9]+$/)) {
+		let n = +s;
+		if (n >= 1 && n <= 65535)
+			return s;
+	}
+
+	return DEFAULT_API_PORT;
+}
+
+function api_port() {
+	let c = cursor();
+	c.load('rust-dns');
+	return sanitize_api_port(c.get('rust-dns', 'config', 'listen_port_api'));
+}
+
+function sanitize_api_host(h) {
+	let s = (h == null) ? '' : '' + h;
+
+	s = replace(s, /^\s+|\s+$/g, '');
+
+	// v1 is loopback only. Accept IPv4 loopback (127.0.0.0/8) and the IPv6
+	// loopback literal; everything else falls back so a tampered UCI value can
+	// never make rpcd send admin requests to a remote host.
+	if (s == '::1' || s == '::0:1' || s == '0:0:0:0:0:0:0:1')
+		return '[::1]';
+
+	let parts = split(s, '.');
+	if (length(parts) == 4 && parts[0] == '127') {
+		let ok = true;
+
+		for (let i = 0; i < 4; i++) {
+			if (!match(parts[i], /^[0-9]{1,3}$/) || +parts[i] > 255) {
+				ok = false;
+				break;
+			}
+		}
+
+		if (ok)
+			return s;
+	}
+
+	return '127.0.0.1';
+}
+
+function api_host() {
+	let c = cursor();
+	c.load('rust-dns');
+	return sanitize_api_host(c.get('rust-dns', 'config', 'api_listen_address'));
+}
+
+function config_int(option, fallback, min, max) {
+	let c = cursor();
+	c.load('rust-dns');
+	return to_int(c.get('rust-dns', 'config', option), fallback, min, max);
+}
+
+function log_path() {
+	let c = cursor();
+	c.load('rust-dns');
+	let path = c.get('rust-dns', 'config', 'log_file');
+
+	// Only the dedicated rust-dns log prefix is accepted. This keeps the
+	// rpcd helper from reading arbitrary files if the UCI value is tampered
+	// with, and matches the file ACL.
+	if (type(path) == 'string' && match(path, /^\/var\/log\/rust-dns[^\/]*$/))
+		return path;
+
+	return DEFAULT_LOG_FILE;
+}
+
+function read_mock(name) {
+	for (let i = 0; i < length(MOCK_DIRS); i++) {
+		let path = MOCK_DIRS[i] + '/' + name + '.json';
+		try {
+			if (!stat(path))
+				continue;
+			let value = parse_json_safe(readfile(path));
+			if (value != null)
+				return value;
+		} catch (e) {
+			// Try the next fixed directory.
+		}
+	}
+
+	return null;
+}
+
+function has_mock_dir() {
+	// Require an actual stats fixture so an empty runtime directory does not
+	// make mutating calls report a fake success.
+	return read_mock('stats') != null;
+}
+
+function api_call(endpoint, query, method) {
+	// Callers only ever pass constants for endpoint. Validate anyway so a
+	// future refactor cannot smuggle shell metacharacters through.
+	if (!match(endpoint, /^\/[a-z0-9\/-]+$/))
+		return { error: 'Invalid API endpoint' };
+
+	let port = api_port();
+	let host = api_host();
+	let url = 'http://' + host + ':' + port + API_PREFIX + endpoint;
+
+	if (query != '')
+		url += '?' + query;
+
+	let cmd = "uclient-fetch -q -O - " +
+		((method == 'POST') ? "--post-data='' " : "") +
+		"'" + url + "'";
+
+	let res = exec_sys(cmd);
+	if (res.code !== 0)
+		return { error: 'rust-dns admin API unreachable at ' + host + ':' + port };
+
+	let value = parse_json_safe(res.stdout);
+	if (value == null)
+		return { error: 'Invalid JSON from rust-dns admin API' };
+
+	return value;
+}
+
+function is_error(value) {
+	return (type(value) == 'object' && value != null && value.error != null);
+}
+
+function api_or_mock(endpoint, query, method, mock_name) {
+	let res = api_call(endpoint, query, method);
+
+	if (!is_error(res))
+		return res;
+
+	let mock = read_mock(mock_name);
+	if (mock != null) {
+		if (type(mock) == 'object' && !is_error(mock))
+			mock.mock = true;
+		return mock;
+	}
+
+	return res;
+}
+
+function mock_post_success() {
+	if (has_mock_dir())
+		return { success: true, mock: true };
+
+	return { success: false, error: 'rust-dns admin API unreachable' };
+}
+
+function get_client_leases() {
+	let leases = {};
+
+	let add_lease = function(ip, name) {
+		if (!ip || !name)
+			return;
+
+		ip = replace(ip, /^\s+|\s+$/g, '');
+		name = replace(name, /^\s+|\s+$/g, '');
+		if (ip == "" || name == "" || name == "*" || name == "unknown")
+			return;
+
+		ip = replace(ip, /\/[0-9]+$/, '');
+		ip = replace(ip, /^::ffff:/i, '');
+
+		leases[ip] = name;
+
+		try {
+			if (type(lc) == 'function')
+				leases[lc(ip)] = name;
+		} catch (e) {}
+	};
+
+	let parse_hosts_file = function(filepath) {
+		try {
+			if (!stat(filepath))
+				return;
+
+			let content = readfile(filepath);
+			if (!content)
+				return;
+
+			let lines = split(content, '\n');
+			for (let i = 0; i < length(lines); i++) {
+				let line = replace(lines[i], /^\s+|\s+$/g, '');
+				if (line == "" || match(line, /^#/))
+					continue;
+
+				let parts = split(line, /[ \t]+/);
+				if (length(parts) >= 2)
+					add_lease(parts[0], parts[1]);
+			}
+		} catch (e) {}
+	};
+
+	try {
+		if (stat('/tmp/dhcp.leases')) {
+			let content = readfile('/tmp/dhcp.leases');
+			if (content) {
+				let lines = split(content, '\n');
+				for (let i = 0; i < length(lines); i++) {
+					let line = replace(lines[i], /^\s+|\s+$/g, '');
+					if (line == "" || match(line, /^#/))
+						continue;
+
+					let parts = split(line, /[ \t]+/);
+					if (length(parts) >= 4)
+						add_lease(parts[2], parts[3]);
+				}
+			}
+		}
+	} catch (e) {}
+
+	parse_hosts_file('/tmp/hosts/odhcpd');
+	parse_hosts_file('/tmp/hosts/dhcp');
+
+	try {
+		if (stat('/tmp/odhcpd.leases')) {
+			let content = readfile('/tmp/odhcpd.leases');
+			if (content) {
+				let lines = split(content, '\n');
+				for (let i = 0; i < length(lines); i++) {
+					let line = replace(lines[i], /^\s+|\s+$/g, '');
+					if (line == "" || match(line, /^#/))
+						continue;
+
+					let parts = split(line, /[ \t]+/);
+					if (length(parts) >= 6) {
+						let host = parts[3];
+						for (let j = 5; j < length(parts); j++)
+							add_lease(parts[j], host);
+					}
+				}
+			}
+		}
+	} catch (e) {}
+
+	parse_hosts_file('/etc/hosts');
+
+	return leases;
+}
+
+function leases_or_mock() {
+	let leases = get_client_leases();
+	let count = 0;
+
+	for (let ip in leases)
+		count++;
+
+	if (count == 0) {
+		let mock = read_mock('leases');
+		if (type(mock) == 'object' && type(mock.leases) == 'object')
+			return mock.leases;
+	}
+
+	return leases;
+}
+
+function mock_filter_logs(data, limit, offset, search, filter) {
+	let items = (type(data) == 'object' && type(data.items) == 'array') ? data.items : [];
+	let filtered = [];
+	let needle = lc(search);
+
+	for (let i = 0; i < length(items); i++) {
+		let item = items[i];
+
+		if (filter == 'blocked' && !item.is_blocked)
+			continue;
+		if (filter == 'cached' && !item.is_cached)
+			continue;
+		if (needle != '' && index(lc(item.domain || ''), needle) == -1)
+			continue;
+
+		push(filtered, item);
+	}
+
+	let page = [];
+	for (let i = offset; i < length(filtered) && i < offset + limit; i++)
+		push(page, filtered[i]);
+
+	return { total: length(filtered), items: page, mock: true };
+}
+
+/* -------------------------------------------------------------------------
+ * MosDNS import helpers
+ * ---------------------------------------------------------------------- */
+
+function stat_safe(path) {
+	try {
+		return stat(path);
+	} catch (e) {
+		return null;
+	}
+}
+
+function in_list(list, value) {
+	for (let i = 0; i < length(list); i++)
+		if (list[i] == value)
+			return true;
+
+	return false;
+}
+
+function is_scalar_option(name) {
+	return in_list(IMPORT_SCALAR_OPTIONS, name);
+}
+
+function is_list_option(name) {
+	return in_list(IMPORT_LIST_OPTIONS, name);
+}
+
+function normalize_scalar(value) {
+	if (value == null)
+		return '';
+
+	if (type(value) == 'array') {
+		let list = normalize_list(value);
+		return (length(list) > 0) ? list[0] : '';
+	}
+
+	return replace('' + value, /^\s+|\s+$/g, '');
+}
+
+function normalize_list(value) {
+	let out = [];
+
+	if (type(value) == 'array') {
+		for (let i = 0; i < length(value); i++) {
+			let item = value[i];
+
+			if (type(item) != 'string')
+				continue;
+
+			item = replace(item, /^\s+|\s+$/g, '');
+			if (item != '')
+				push(out, item);
+		}
+	} else if (type(value) == 'string') {
+		let item = replace(value, /^\s+|\s+$/g, '');
+		if (item != '')
+			push(out, item);
+	}
+
+	return out;
+}
+
+function join_array(list, separator) {
+	let out = '';
+
+	for (let i = 0; i < length(list); i++) {
+		if (i > 0)
+			out += separator;
+		out += '' + list[i];
+	}
+
+	return out;
+}
+
+function printable_value(value) {
+	if (type(value) == 'array')
+		return join_array(normalize_list(value), ', ');
+
+	return normalize_scalar(value);
+}
+
+// get_all() returns section metadata as ".type"/".name" (newer ucode) or
+// plain "type"/"name" keys; accept both and fall back to the object key.
+function find_section(c, config, wanted_type) {
+	let sections = null;
+
+	try {
+		sections = c.get_all(config);
+	} catch (e) {
+		sections = null;
+	}
+
+	if (type(sections) != 'object' || sections == null)
+		return null;
+
+	for (let key, sec in sections) {
+		if (type(sec) != 'object' || sec == null)
+			continue;
+
+		let stype = sec['.type'];
+		if (stype == null)
+			stype = sec.type;
+
+		let sname = sec['.name'];
+		if (sname == null)
+			sname = sec.name;
+		if (sname == null)
+			sname = key;
+
+		if (stype == wanted_type || stype == null)
+			return { name: sname, data: sec };
+	}
+
+	return null;
+}
+
+function find_mosdns_section(c) {
+	let found = find_section(c, 'mosdns', 'mosdns');
+
+	if (found != null)
+		return found;
+
+	// Fallback for ucode builds whose get_all() does not expose sections:
+	// probe the conventional named section used by luci-app-mosdns.
+	try {
+		if (c.get('mosdns', 'config', 'enabled') != null)
+			return { name: 'config', data: null };
+	} catch (e) {}
+
+	return null;
+}
+
+function collect_mosdns_options(c, sec) {
+	let result = [];
+
+	if (sec.data != null && type(sec.data) == 'object') {
+		for (let name, value in sec.data) {
+			if (match(name, /^\./) || name == 'type' || name == 'name')
+				continue;
+
+			push(result, { name: name, value: value });
+		}
+
+		return result;
+	}
+
+	for (let i = 0; i < length(IMPORT_KNOWN_OPTIONS); i++) {
+		let name = IMPORT_KNOWN_OPTIONS[i];
+		let value = null;
+
+		try {
+			value = c.get('mosdns', sec.name, name);
+		} catch (e) {
+			value = null;
+		}
+
+		if (value != null)
+			push(result, { name: name, value: value });
+	}
+
+	return result;
+}
+
+function current_value(c, rust_sec, option) {
+	if (rust_sec == null)
+		return null;
+
+	try {
+		let value = c.get('rust-dns', rust_sec.name, option);
+
+		if (value == null)
+			return null;
+
+		return (type(value) == 'array') ? normalize_list(value) : normalize_scalar(value);
+	} catch (e) {
+		return null;
+	}
+}
+
+function mapped_value(plan, option) {
+	for (let i = 0; i < length(plan.mapped); i++)
+		if (plan.mapped[i].to == option)
+			return plan.mapped[i].value;
+
+	return '';
+}
+
+function skip_reason(name) {
+	if (name == 'configfile')
+		return 'The MosDNS runtime config path is not copied; rust-dns generates its own configuration.';
+	if (name == 'log_file')
+		return 'rust-dns keeps its own log file (' + DEFAULT_LOG_FILE +
+			'); the MosDNS log path is not reused to avoid mixing or overwriting MosDNS logs.';
+	if (name == 'dump_file')
+		return 'rust-dns uses dump_interval and writes a cache dump whenever the interval is non-zero.';
+	if (name == 'apple_optimization')
+		return 'rust-dns has no Apple domain optimization option.';
+
+	return 'No equivalent option in rust-dns; the current rust-dns value is left untouched.';
+}
+
+function list_rule_files() {
+	let files = [];
+	let names = null;
+
+	try {
+		names = lsdir(MOSDNS_RULE_DIR);
+	} catch (e) {
+		return files;
+	}
+
+	if (type(names) != 'array')
+		return files;
+
+	for (let i = 0; i < length(names); i++) {
+		let name = names[i];
+
+		// Some ucode fs versions return { name: ... } entries.
+		if (type(name) != 'string') {
+			try {
+				name = name.name;
+			} catch (e) {
+				name = null;
+			}
+		}
+
+		if (type(name) != 'string')
+			continue;
+
+		// Only plain file names: no path traversal, no dotfiles, no symlinks
+		// to unexpected places are followed for the copy operation.
+		if (!match(name, /^[A-Za-z0-9._-]+$/) || match(name, /^\./))
+			continue;
+
+		let path = MOSDNS_RULE_DIR + '/' + name;
+		let info = stat_safe(path);
+
+		if (info == null || info.type != 'file')
+			continue;
+
+		push(files, { name: name, path: path, size: info.size });
+	}
+
+	return files;
+}
+
+function build_rule_preview() {
+	let files = list_rule_files();
+	let rules = [];
+
+	for (let i = 0; i < length(files); i++) {
+		let file = files[i];
+		let content = null;
+
+		try {
+			content = readfile(file.path);
+		} catch (e) {
+			content = null;
+		}
+
+		if (type(content) != 'string')
+			continue;
+
+		let target = RUST_DNS_RULE_DIR + '/' + file.name;
+		let status = 'new';
+		let info = stat_safe(target);
+
+		if (info != null) {
+			let current = null;
+
+			try {
+				current = readfile(target);
+			} catch (e) {
+				current = null;
+			}
+
+			status = (type(current) == 'string' && current == content) ? 'unchanged' : 'changed';
+		}
+
+		push(rules, {
+			name: file.name,
+			source: file.path,
+			target: target,
+			size: length(content),
+			status: status
+		});
+	}
+
+	return rules;
+}
+
+function build_import_plan() {
+	let plan = {
+		success: false,
+		available: false,
+		mapped: [],
+		skipped: [],
+		rules: [],
+		warnings: []
+	};
+
+	if (stat_safe(MOSDNS_CONFIG) == null) {
+		// Not an error condition: the user simply has no MosDNS installation.
+		// Keep available=false and leave error unset so the UI can show a
+		// translated "nothing to import" notice instead of a raw message.
+		return plan;
+	}
+
+	let c = cursor();
+
+	try {
+		c.load('mosdns');
+	} catch (e) {
+		plan.error = 'Failed to read ' + MOSDNS_CONFIG + ': ' + String(e);
+		return plan;
+	}
+
+	let sec = find_mosdns_section(c);
+
+	if (sec == null) {
+		plan.error = 'No MosDNS configuration section found in ' + MOSDNS_CONFIG + '.';
+		return plan;
+	}
+
+	plan.success = true;
+	plan.available = true;
+	plan.source = MOSDNS_CONFIG;
+	plan.section = sec.name;
+	plan.rule_dir = MOSDNS_RULE_DIR;
+	plan.target_rule_dir = RUST_DNS_RULE_DIR;
+	plan.backup_prefix = IMPORT_BACKUP_PREFIX;
+
+	let rust_sec = null;
+
+	try {
+		c.load('rust-dns');
+		rust_sec = find_section(c, 'rust-dns', 'rust-dns');
+	} catch (e) {
+		rust_sec = null;
+	}
+
+	let options = collect_mosdns_options(c, sec);
+
+	for (let i = 0; i < length(options); i++) {
+		let item = options[i];
+		let name = item.name;
+
+		if (is_list_option(name)) {
+			let values = normalize_list(item.value);
+
+			if (length(values) == 0)
+				continue;
+
+			push(plan.mapped, {
+				from: name,
+				to: name,
+				list: true,
+				value: values,
+				current: current_value(c, rust_sec, name)
+			});
+		} else if (is_scalar_option(name)) {
+			let value = normalize_scalar(item.value);
+
+			if (value == '')
+				continue;
+
+			push(plan.mapped, {
+				from: name,
+				to: name,
+				list: false,
+				value: value,
+				current: current_value(c, rust_sec, name)
+			});
+		} else {
+			push(plan.skipped, {
+				option: name,
+				value: printable_value(item.value),
+				reason: skip_reason(name)
+			});
+		}
+	}
+
+	plan.rules = build_rule_preview();
+
+	// Custom YAML configs cannot be translated automatically; call it out
+	// prominently rather than letting the user assume it was migrated.
+	let custom_config = '';
+
+	try {
+		custom_config = normalize_scalar(c.get('mosdns', sec.name, 'configfile'));
+	} catch (e) {
+		custom_config = '';
+	}
+
+	if (custom_config != '' && custom_config != '/var/etc/mosdns.json')
+		push(plan.warnings, 'MosDNS uses a custom YAML configuration (' + custom_config +
+			'). Only UCI options and rule files are imported; custom YAML content is not copied.');
+
+	let rust_configfile = current_value(c, rust_sec, 'configfile');
+
+	if (type(rust_configfile) == 'string' && rust_configfile != '' &&
+	    rust_configfile != '/var/etc/rust-dns/config.json')
+		push(plan.warnings, 'rust-dns currently uses ' + rust_configfile +
+			'; imported UCI options only take effect when the config file is set to the generated configuration.');
+
+	let mos_enabled = mapped_value(plan, 'enabled');
+	let mos_port = mapped_value(plan, 'listen_port');
+	let mos_api_port = mapped_value(plan, 'listen_port_api');
+
+	if (mos_enabled == '1' && mos_port != '') {
+		let next_port = (+mos_port) + 1;
+		let message = 'MosDNS is enabled on DNS port ' + mos_port +
+			'; after the import rust-dns uses the same port.';
+
+		if (next_port > 0 && next_port <= 65535)
+			message += ' Consider changing the rust-dns listen port to ' + next_port +
+				' so both services can run at the same time.';
+
+		push(plan.warnings, message);
+	}
+
+	if (mos_enabled == '1' && mos_api_port != '')
+		push(plan.warnings, 'MosDNS is enabled and both services use admin API port ' + mos_api_port +
+			'; change one of the API ports if both services run at the same time.');
+
+	if (length(plan.mapped) == 0 && length(plan.rules) == 0) {
+		push(plan.warnings, 'No compatible options or rule files were found. Nothing will be imported.');
+	} else {
+		if (length(plan.mapped) == 0)
+			push(plan.warnings, 'No compatible MosDNS options were found; only rule files will be imported.');
+		if (length(plan.rules) == 0)
+			push(plan.warnings, 'No rule files were found in ' + MOSDNS_RULE_DIR + '.');
+	}
+
+	return plan;
+}
+
+function current_timestamp() {
+	try {
+		let value = int(time());
+
+		if (value > 0)
+			return '' + value;
+	} catch (e) {}
+
+	let res = exec_sys('date +%s');
+
+	if (res.code === 0 && match(res.stdout, /^[0-9]+$/))
+		return res.stdout;
+
+	return '0';
+}
+
+function make_backup() {
+	if (stat_safe('/etc/rust-dns') == null) {
+		try {
+			mkdir('/etc/rust-dns');
+		} catch (e) {
+			return { error: 'Unable to create /etc/rust-dns: ' + String(e) };
+		}
+	}
+
+	let stamp = current_timestamp();
+	let path = IMPORT_BACKUP_PREFIX + stamp + '.tar.gz';
+
+	while (stat_safe(path) != null) {
+		stamp = '' + ((+stamp) + 1);
+		path = IMPORT_BACKUP_PREFIX + stamp + '.tar.gz';
+	}
+
+	if (!match(path, /^\/etc\/rust-dns\/import-backup-[0-9]+\.tar\.gz$/))
+		return { error: 'Refusing to write an unexpected backup path.' };
+
+	let items = [];
+
+	if (stat_safe(MOSDNS_CONFIG) != null)
+		push(items, 'etc/config/mosdns');
+	if (stat_safe(RUST_DNS_CONFIG) != null)
+		push(items, 'etc/config/rust-dns');
+	if (stat_safe(MOSDNS_RULE_DIR) != null)
+		push(items, 'etc/mosdns/rule');
+	if (stat_safe(RUST_DNS_RULE_DIR) != null)
+		push(items, 'etc/rust-dns/rule');
+
+	if (length(items) == 0)
+		return { error: 'Nothing to back up.' };
+
+	let args = '';
+
+	for (let i = 0; i < length(items); i++)
+		args += ' ' + items[i];
+
+	// Fixed path plus fixed relative entries; no user input reaches the shell.
+	let res = exec_sys('tar -czf ' + path + ' -C /' + args);
+
+	if (res.code !== 0 || stat_safe(path) == null)
+		return { error: 'Failed to create backup archive: ' + (res.stdout || 'tar failed') };
+
+	return { path: path };
+}
+
+function ensure_rust_dns_section(c) {
+	// uci.add() needs an already loaded package, and load() fails when the
+	// file is absent (for example on a partially installed system). Seed a
+	// minimal config file first so the cursor can load and extend it.
+	if (stat_safe(RUST_DNS_CONFIG) == null) {
+		let f = open(RUST_DNS_CONFIG, 'w');
+
+		if (!f)
+			return null;
+
+		f.write("config rust-dns 'config'\n");
+		f.close();
+
+		try {
+			chmod(RUST_DNS_CONFIG, 420); // 0644
+		} catch (e) {}
+	}
+
+	try {
+		c.load('rust-dns');
+	} catch (e) {}
+
+	let found = find_section(c, 'rust-dns', 'rust-dns');
+
+	if (found != null)
+		return found.name;
+
+	let section = c.add('rust-dns', 'rust-dns');
+
+	if (section == null)
+		return null;
+
+	if (section != 'config') {
+		try {
+			if (c.rename('rust-dns', section, 'config'))
+				return 'config';
+		} catch (e) {}
+	}
+
+	return section;
+}
+
+function write_file_atomic(path, content) {
+	let tmp = path + '.tmp';
+	let f = open(tmp, 'w');
+
+	if (!f)
+		throw 'cannot open ' + tmp + ' for writing';
+
+	f.write(content);
+	f.close();
+
+	try {
+		chmod(tmp, 420); // 0644
+	} catch (e) {}
+
+	if (!rename(tmp, path))
+		throw 'cannot atomically replace ' + path;
+}
+
+function ensure_rule_dir() {
+	if (stat_safe(RUST_DNS_RULE_DIR) != null)
+		return true;
+
+	try {
+		mkdir(RUST_DNS_RULE_DIR);
+	} catch (e) {}
+
+	return stat_safe(RUST_DNS_RULE_DIR) != null;
+}
+
+function copy_rule_files(plan) {
+	let results = [];
+
+	if (!ensure_rule_dir())
+		throw 'cannot create ' + RUST_DNS_RULE_DIR;
+
+	for (let i = 0; i < length(plan.rules); i++) {
+		let rule = plan.rules[i];
+
+		try {
+			let content = readfile(rule.source);
+
+			if (type(content) != 'string')
+				throw 'unreadable source file';
+
+			let target = RUST_DNS_RULE_DIR + '/' + rule.name;
+			let info = stat_safe(target);
+			let old = null;
+
+			if (info != null) {
+				try {
+					old = readfile(target);
+				} catch (e) {
+					old = null;
+				}
+			}
+
+			if (type(old) == 'string' && old == content) {
+				push(results, { name: rule.name, target: target, status: 'unchanged' });
+				continue;
+			}
+
+			if (type(old) == 'string')
+				write_file_atomic(target + '.bak', old);
+
+			write_file_atomic(target, content);
+
+			push(results, {
+				name: rule.name,
+				target: target,
+				status: (info == null) ? 'new' : 'copied'
+			});
+		} catch (e) {
+			push(results, {
+				name: rule.name,
+				target: RUST_DNS_RULE_DIR + '/' + rule.name,
+				status: 'error',
+				error: String(e)
+			});
+		}
+	}
+
+	return results;
+}
+
+function set_uci_option(c, section, item) {
+	if (item.list === true) {
+		let values = normalize_list(item.value);
+
+		if (length(values) == 0) {
+			c.delete('rust-dns', section, item.to);
+			return;
+		}
+
+		// ucode's uci.set() replaces the option as a list when given an array.
+		c.set('rust-dns', section, item.to, values);
+		return;
+	}
+
+	c.set('rust-dns', section, item.to, '' + item.value);
+}
+
+function reload_rust_dns() {
+	if (stat_safe(RUST_DNS_INIT) == null)
+		return { code: -1, output: 'init script not found' };
+
+	let res = exec_sys(RUST_DNS_INIT + ' reload');
+
+	return { code: res.code, output: res.stdout };
+}
+
+/* -------------------------------------------------------------------------
+ * Cloudflare optimizer helpers
+ *
+ * The UI sends plain values; this layer validates every one of them and turns
+ * them into an argv array. fs.popen() is called with that array (execvp, no
+ * shell), so no user value is ever parsed by a shell. A fixed /bin/sh wrapper
+ * is used only for output redirection and backgrounding and receives the
+ * optimizer argv as positional parameters.
+ * ---------------------------------------------------------------------- */
+
+function trim_value(value) {
+	return replace('' + value, /^\s+|\s+$/g, '');
+}
+
+function parse_int_arg(value, fallback, min, max, name) {
+	let s = (value == null || value === '') ? '' : trim_value(value);
+
+	if (s == '')
+		return { value: fallback };
+	if (!match(s, /^[0-9]+$/))
+		return { error: name + ' must be an integer' };
+
+	let n = int(s);
+
+	if (n < min || n > max)
+		return { error: name + ' must be between ' + min + ' and ' + max };
+
+	return { value: n };
+}
+
+function parse_float_arg(value, fallback, min, max, name) {
+	let s = (value == null || value === '') ? '' : trim_value(value);
+
+	if (s == '')
+		return { value: fallback };
+	if (!match(s, /^[0-9]+(\.[0-9]+)?$/))
+		return { error: name + ' must be a non-negative number' };
+
+	let n = +s;
+
+	if (n < min || n > max)
+		return { error: name + ' must be between ' + min + ' and ' + max };
+
+	return { value: n };
+}
+
+function hex_to_int(hex) {
+	let n = 0;
+
+	for (let i = 0; i < length(hex); i++) {
+		let digit = index('0123456789abcdef', lc(substr(hex, i, 1)));
+
+		if (digit < 0)
+			return -1;
+
+		n = n * 16 + digit;
+	}
+
+	return n;
+}
+
+function parse_mark_arg(value) {
+	let s = trim_value(value == null ? '' : value);
+	let n = -1;
+
+	if (match(s, /^0[xX][0-9A-Fa-f]{1,8}$/))
+		n = hex_to_int(substr(s, 2));
+	else if (match(s, /^[0-9]{1,10}$/))
+		n = int(s);
+
+	if (n < 1 || n > 4294967295)
+		return { error: 'mark must be decimal or 0x-prefixed hex within 1..0xffffffff' };
+
+	return { text: s };
+}
+
+function is_valid_domain(domain) {
+	if (type(domain) != 'string' || domain == '')
+		return false;
+	if (length(domain) > 253)
+		return false;
+	// ASCII printable only: reject spaces, control characters and non-ASCII.
+	if (match(domain, /[^\x21-\x7e]/))
+		return false;
+	if (match(domain, /[#\/\\:]/))
+		return false;
+	if (substr(domain, 0, 1) == '.' || substr(domain, length(domain) - 1, 1) == '.')
+		return false;
+
+	let labels = split(domain, '.');
+
+	for (let i = 0; i < length(labels); i++) {
+		let label = labels[i];
+
+		if (label == '' || length(label) > 63)
+			return false;
+		if (substr(label, 0, 1) == '-' || substr(label, length(label) - 1, 1) == '-')
+			return false;
+		if (!match(label, /^[A-Za-z0-9_-]+$/))
+			return false;
+	}
+
+	return true;
+}
+
+function parse_ipv4(value) {
+	let parts = split(value, '.');
+
+	if (length(parts) != 4)
+		return null;
+
+	let octets = [];
+
+	for (let i = 0; i < length(parts); i++) {
+		let part = parts[i];
+
+		if (!match(part, /^[0-9]{1,3}$/))
+			return null;
+		if (length(part) > 1 && substr(part, 0, 1) == '0')
+			return null;
+
+		let n = int(part);
+
+		if (n > 255)
+			return null;
+
+		push(octets, n);
+	}
+
+	return octets;
+}
+
+function ipv6_groups(side) {
+	let groups = [];
+
+	if (side == '')
+		return { ok: true, groups: groups };
+
+	let items = split(side, ':');
+
+	for (let i = 0; i < length(items); i++) {
+		let item = items[i];
+
+		if (item == '')
+			return { ok: false };
+
+		if (index(item, '.') >= 0) {
+			if (i != length(items) - 1)
+				return { ok: false };
+
+			let v4 = parse_ipv4(item);
+
+			if (v4 == null)
+				return { ok: false };
+
+			push(groups, v4[0] * 256 + v4[1]);
+			push(groups, v4[2] * 256 + v4[3]);
+		}
+		else {
+			if (!match(item, /^[0-9A-Fa-f]{1,4}$/))
+				return { ok: false };
+
+			push(groups, hex_to_int(item));
+		}
+	}
+
+	return { ok: true, groups: groups };
+}
+
+function parse_ipv6(value) {
+	if (!match(value, /^[0-9A-Fa-f:.]+$/))
+		return null;
+
+	let halves = split(value, '::');
+
+	if (length(halves) > 2)
+		return null;
+
+	let left = ipv6_groups(halves[0]);
+
+	if (left.ok != true)
+		return null;
+
+	let right = (length(halves) == 2) ? ipv6_groups(halves[1]) : { ok: true, groups: [] };
+
+	if (right.ok != true)
+		return null;
+
+	let total = length(left.groups) + length(right.groups);
+	let groups = left.groups;
+
+	if (length(halves) == 1) {
+		if (total != 8)
+			return null;
+		return groups;
+	}
+
+	// A compressed address must elide at least one group.
+	if (total > 7)
+		return null;
+
+	for (let i = total; i < 8; i++)
+		push(groups, 0);
+	for (let i = 0; i < length(right.groups); i++)
+		push(groups, right.groups[i]);
+
+	return groups;
+}
+
+function is_public_v4(octets) {
+	let a = octets[0], b = octets[1], c = octets[2];
+
+	if (a == 0 || a == 10 || a == 127 || a >= 224)
+		return false;
+	if (a == 100 && b >= 64 && b <= 127)
+		return false;
+	if (a == 169 && b == 254)
+		return false;
+	if (a == 172 && b >= 16 && b <= 31)
+		return false;
+	if (a == 192 && b == 168)
+		return false;
+	if (a == 192 && b == 0 && (c == 0 || c == 2))
+		return false;
+	if (a == 198 && (b == 18 || b == 19))
+		return false;
+	if (a == 198 && b == 51 && c == 100)
+		return false;
+	if (a == 203 && b == 0 && c == 113)
+		return false;
+	if (a == 192 && b == 88 && c == 99)
+		return false;
+
+	return true;
+}
+
+function is_public_v6(groups) {
+	let all_zero = true;
+
+	for (let i = 0; i < 8; i++)
+		if (groups[i] != 0)
+			all_zero = false;
+
+	if (all_zero)
+		return false;
+
+	let loopback = true;
+
+	for (let i = 0; i < 7; i++)
+		if (groups[i] != 0)
+			loopback = false;
+	if (loopback && groups[7] == 1)
+		return false;
+
+	if ((groups[0] & 0xfe00) == 0xfc00)
+		return false;
+	if ((groups[0] & 0xffc0) == 0xfe80)
+		return false;
+	if ((groups[0] & 0xff00) == 0xff00)
+		return false;
+	if (groups[0] == 0x2001 && groups[1] == 0x0db8)
+		return false;
+
+	// IPv4-mapped ::ffff:a.b.c.d
+	let mapped = true;
+
+	for (let i = 0; i < 5; i++)
+		if (groups[i] != 0)
+			mapped = false;
+	if (mapped && groups[5] == 0xffff)
+		return false;
+
+	return true;
+}
+
+function is_ip_literal(value) {
+	return parse_ipv4(value) != null || parse_ipv6(value) != null;
+}
+
+function is_public_ip_literal(value) {
+	let v4 = parse_ipv4(value);
+
+	if (v4 != null)
+		return is_public_v4(v4);
+
+	let v6 = parse_ipv6(value);
+
+	if (v6 != null)
+		return is_public_v6(v6);
+
+	return false;
+}
+
+function sanitize_cf_url(value) {
+	let s = trim_value(value == null ? '' : value);
+
+	if (s == '')
+		return { error: 'download URL is empty' };
+	if (length(s) > 2048)
+		return { error: 'download URL is too long' };
+	if (match(s, /[\s"']/))
+		return { error: 'download URL contains whitespace or quotes' };
+	if (!match(s, /^https:\/\//))
+		return { error: 'download URL must use https://' };
+
+	let rest = substr(s, 8);
+	let slash = index(rest, '/');
+	let authority = (slash >= 0) ? substr(rest, 0, slash) : rest;
+	let port = '';
+
+	if (authority == '')
+		return { error: 'download URL has no host' };
+	if (index(authority, '@') >= 0)
+		return { error: 'download URL must not contain userinfo' };
+
+	if (substr(authority, 0, 1) == '[') {
+		let close = index(authority, ']');
+
+		if (close < 0)
+			return { error: 'unterminated IPv6 literal in download URL' };
+
+		let host = substr(authority, 1, close - 1);
+		let after = substr(authority, close + 1);
+
+		if (after != '') {
+			if (substr(after, 0, 1) != ':')
+				return { error: 'invalid characters after IPv6 literal' };
+			port = substr(after, 1);
+		}
+
+		let v6 = parse_ipv6(host);
+
+		if (v6 == null || !is_public_v6(v6))
+			return { error: 'download URL host is not a public address' };
+	}
+	else {
+		let host = authority;
+		let colon = index(authority, ':');
+
+		if (colon >= 0) {
+			host = substr(authority, 0, colon);
+			port = substr(authority, colon + 1);
+		}
+
+		if (is_ip_literal(host)) {
+			if (!is_public_ip_literal(host))
+				return { error: 'download URL host is not a public address' };
+		}
+		else {
+			let lower = lc(host);
+
+			if (lower == 'localhost' || match(lower, /\.local$/))
+				return { error: 'download URL host is not routable' };
+			if (!match(host, /^[A-Za-z0-9._-]+$/))
+				return { error: 'download URL host has an invalid character' };
+			if (length(host) > 253)
+				return { error: 'download URL host is too long' };
+
+			let labels = split(host, '.');
+
+			for (let i = 0; i < length(labels); i++) {
+				let label = labels[i];
+
+				if (label == '' || length(label) > 63)
+					return { error: 'download URL host has an invalid label' };
+				if (substr(label, 0, 1) == '-' || substr(label, length(label) - 1, 1) == '-')
+					return { error: 'download URL host label starts or ends with -' };
+			}
+		}
+	}
+
+	if (port != '') {
+		if (!match(port, /^[0-9]{1,5}$/) || int(port) < 1 || int(port) > 65535)
+			return { error: 'download URL port is invalid' };
+	}
+
+	return { value: s };
+}
+
+function sanitize_cf_ip_file(value) {
+	let s = trim_value(value == null ? '' : value);
+
+	if (s == '')
+		s = CF_DEFAULT_IP_FILE;
+	if (!match(s, /^\/var\/rust-dns\/cf-optimizer\/[A-Za-z0-9._-]+$/))
+		return { error: 'IP file must be a plain file name under ' + CF_DIR };
+
+	let info = stat_safe(s);
+
+	if (info == null || info.type != 'file')
+		return { error: 'IP file does not exist: ' + s };
+
+	return { value: s };
+}
+
+function sanitize_cf_device(value) {
+	let s = trim_value(value == null ? '' : value);
+
+	if (s == '')
+		return { value: '' };
+	if (!match(s, /^[A-Za-z0-9_.@-]{1,15}$/))
+		return { error: 'device must be a valid interface name (1-15 characters)' };
+
+	return { value: s };
+}
+
+/* Build the fixed-argv `rust-dns cf-optimize` invocation. No raw user string
+ * is ever placed in a command line: each value is validated here first. */
+function build_cf_argv(config) {
+	if (type(config) != 'object' || config == null)
+		config = {};
+
+	let source = trim_value(config.source == null ? 'cloudflare' : config.source);
+
+	if (source != 'cloudflare' && source != 'file' && source != 'fixture')
+		return { error: 'source must be cloudflare, file or fixture' };
+
+	let family = trim_value(config.family == null ? '4' : config.family);
+
+	if (family != '4' && family != '6')
+		return { error: 'family must be 4 or 6' };
+
+	let checks = [
+		[ 'port', parse_int_arg(config.port, 443, 1, 65535, 'port') ],
+		[ 'threads', parse_int_arg(config.threads, 50, 1, 512, 'threads') ],
+		[ 'ping', parse_int_arg(config.ping, 4, 1, 50, 'ping') ],
+		[ 'download_count', parse_int_arg(config.download_count, 5, 0, 200, 'download count') ],
+		[ 'download_time', parse_int_arg(config.download_time, 10, 0, 3600, 'download time') ],
+		[ 'download_bytes', parse_int_arg(config.download_bytes, 10000000, 0, 2000000000, 'download bytes') ],
+		[ 'download_concurrency', parse_int_arg(config.download_concurrency, 4, 1, 64, 'download concurrency') ],
+		[ 'max_candidates', parse_int_arg(config.max_candidates, 1000, 1, 200000, 'maximum candidates') ],
+		[ 'max_latency', parse_float_arg(config.max_latency, 300, 0, 600000, 'maximum latency') ],
+		[ 'max_loss', parse_float_arg(config.max_loss, 20, 0, 100, 'maximum loss') ],
+		[ 'min_speed', parse_float_arg(config.min_speed, 1, 0, 1000000, 'minimum speed') ]
+	];
+	let values = {};
+
+	for (let i = 0; i < length(checks); i++) {
+		if (checks[i][1].error != null)
+			return { error: checks[i][1].error };
+		values[checks[i][0]] = checks[i][1].value;
+	}
+
+	if (values.download_count > 0 && values.download_time < 1)
+		return { error: 'download time must be at least 1 second when download tests are enabled' };
+	if (values.download_count > 0 && values.download_bytes < 1)
+		return { error: 'download bytes must be at least 1 when download tests are enabled' };
+
+	let url = sanitize_cf_url(config.url == null ?
+		'https://speed.cloudflare.com/__down?bytes=10000000' : config.url);
+
+	if (url.error != null)
+		return { error: url.error };
+
+	let ip_file = null;
+
+	if (source == 'file') {
+		ip_file = sanitize_cf_ip_file(config.ip_file);
+
+		if (ip_file.error != null)
+			return { error: ip_file.error };
+	}
+
+	let bypass = trim_value(config.bypass_mode == null ? 'none' : config.bypass_mode);
+
+	if (bypass != 'none' && bypass != 'mark' && bypass != 'device')
+		return { error: 'bypass mode must be none, mark or device' };
+
+	let mark = null;
+
+	if (bypass == 'mark') {
+		mark = parse_mark_arg(config.mark);
+
+		if (mark.error != null)
+			return { error: mark.error };
+	}
+
+	let device = sanitize_cf_device(config.device);
+
+	if (device.error != null)
+		return { error: device.error };
+	if (bypass != 'none' && device.value == '')
+		return { error: 'device (WAN interface) is required in ' + bypass + ' bypass mode' };
+
+	let source_ip = trim_value(config.source_ip == null ? '' : config.source_ip);
+
+	if (source_ip != '' && !is_ip_literal(source_ip))
+		return { error: 'source IP is not a valid IP address' };
+
+	let argv = [ RUST_DNS_BIN, 'cf-optimize' ];
+
+	push(argv, '--source');
+	push(argv, source);
+
+	if (source == 'file') {
+		push(argv, '--ip-file');
+		push(argv, ip_file.value);
+	}
+
+	push(argv, '--family');
+	push(argv, family);
+	push(argv, '--port');
+	push(argv, '' + values.port);
+	push(argv, '--threads');
+	push(argv, '' + values.threads);
+	push(argv, '--ping');
+	push(argv, '' + values.ping);
+	push(argv, '--download-count');
+	push(argv, '' + values.download_count);
+	push(argv, '--download-time');
+	push(argv, '' + values.download_time);
+	push(argv, '--download-bytes');
+	push(argv, '' + values.download_bytes);
+	push(argv, '--download-concurrency');
+	push(argv, '' + values.download_concurrency);
+	push(argv, '--url');
+	push(argv, url.value);
+	push(argv, '--max-candidates');
+	push(argv, '' + values.max_candidates);
+	push(argv, '--max-latency');
+	push(argv, '' + values.max_latency);
+	push(argv, '--max-loss');
+	push(argv, '' + values.max_loss);
+	push(argv, '--min-speed');
+	push(argv, '' + values.min_speed);
+	push(argv, '--bypass-mode');
+	push(argv, bypass);
+
+	if (mark != null) {
+		push(argv, '--mark');
+		push(argv, mark.text);
+	}
+
+	if (device.value != '' && bypass != 'none') {
+		push(argv, '--device');
+		push(argv, device.value);
+	}
+
+	if (source_ip != '') {
+		push(argv, '--source-ip');
+		push(argv, source_ip);
+	}
+
+	push(argv, '--output');
+	push(argv, CF_OUTPUT);
+	push(argv, '--progress');
+	push(argv, CF_PROGRESS);
+	push(argv, '--cancel-file');
+	push(argv, CF_CANCEL);
+
+	if (config.dry_run === true || config.dry_run === 1 || config.dry_run === '1')
+		push(argv, '--dry-run');
+
+	return { argv: argv };
+}
+
+/* Run a fixed argv through a wrapper that only merges stderr into stdout.
+ * User values remain positional arguments; the shell never parses them. */
+function run_argv_capture(argv) {
+	let launch = [ '/bin/sh', '-c', 'exec "$@" 2>&1', 'sh' ];
+
+	for (let i = 0; i < length(argv); i++)
+		push(launch, argv[i]);
+
+	let p = popen(launch, 'r');
+
+	if (!p)
+		return { code: -1, output: '' };
+
+	let output = p.read('all');
+	let code = p.close();
+
+	if (type(output) == 'string')
+		output = trim_value(output);
+
+	return { code: code, output: output || '' };
+}
+
+/* Preferred path: let the Rust CLI do the managed-block merge, backup and
+ * reload. Returns a marker when this build does not provide the subcommand so
+ * the caller can fall back to the equivalent in-rpcd merge below. */
+function apply_hosts_via_cli(entries) {
+	let argv = [
+		RUST_DNS_BIN, 'cf-apply-hosts',
+		'--file', CF_HOSTS_FILE,
+		'--reload-init', RUST_DNS_INIT
+	];
+
+	for (let i = 0; i < length(entries); i++) {
+		push(argv, '--entry');
+		push(argv, entries[i].domain + '=' + entries[i].ip);
+	}
+
+	return run_argv_capture(argv);
+}
+
+function cli_subcommand_missing(res) {
+	if (res.code === 0)
+		return false;
+	if (res.code === -1)
+		return true;
+
+	let out = res.output || res.stdout || '';
+
+	return match(out,
+		/unrecognized subcommand|invalid subcommand|unknown subcommand|unexpected argument/i);
+}
+
+/* Cheap support probe run once when a test starts. `cf-optimize --version`
+ * returns 0 when the subcommand exists and a clap "unknown subcommand" error
+ * otherwise. Progress polling never calls this. */
+function check_optimizer_support() {
+	// Fixed command string: no user input reaches the shell here.
+	let probe = exec_sys(RUST_DNS_BIN + ' cf-optimize --version');
+
+	if (probe.code === 0)
+		return null;
+
+	if (cli_subcommand_missing(probe))
+		return 'This rust-dns build does not provide the cf-optimize subcommand.';
+
+	return null;
+}
+
+function ensure_dir(path) {
+	if (stat_safe(path) != null)
+		return true;
+
+	try {
+		mkdir(path);
+	} catch (e) {}
+
+	return stat_safe(path) != null;
+}
+
+function read_json_file(path) {
+	try {
+		if (stat_safe(path) == null)
+			return { missing: true };
+
+		let value = parse_json_safe(readfile(path));
+
+		if (value == null)
+			return { invalid: true };
+
+		return { value: value };
+	} catch (e) {
+		return { error: String(e) };
+	}
+}
+
+function read_tail(path, max_bytes) {
+	try {
+		let info = stat_safe(path);
+
+		if (info == null || info.type != 'file')
+			return '';
+
+		let f = open(path, 'r');
+
+		if (!f)
+			return '';
+
+		if (info.size > max_bytes)
+			f.seek(-max_bytes, 2);
+
+		let text = f.read(max_bytes);
+		f.close();
+
+		if (type(text) != 'string')
+			return '';
+
+		if (info.size > max_bytes) {
+			let nl = index(text, '\n');
+
+			if (nl >= 0)
+				text = substr(text, nl + 1);
+		}
+
+		return text;
+	} catch (e) {
+		return '';
+	}
+}
+
+function cf_pid_running() {
+	try {
+		let pid = trim_value(readfile(CF_PID));
+
+		if (!match(pid, /^[0-9]{1,10}$/))
+			return false;
+
+		if (stat_safe('/proc/' + pid) == null)
+			return false;
+
+		// Guard against PID reuse: only count the pid when its command line
+		// still looks like the optimizer we launched.
+		try {
+			let cmdline = readfile('/proc/' + pid + '/cmdline');
+
+			if (type(cmdline) == 'string' && index(cmdline, 'rust-dns') < 0)
+				return false;
+		} catch (e) {}
+
+		return true;
+	} catch (e) {
+		return false;
+	}
+}
+
+/* Managed hosts block (mirrors rust-dns-cf-optimizer::hosts). */
+function strip_managed_hosts_block(text) {
+	let out = [];
+	let inside = false;
+	let lines = split(text, '\n');
+
+	for (let i = 0; i < length(lines); i++) {
+		let line = trim_value(lines[i]);
+
+		if (line == CF_HOSTS_BEGIN) {
+			inside = true;
+			continue;
+		}
+		if (line == CF_HOSTS_END) {
+			inside = false;
+			continue;
+		}
+		if (!inside)
+			push(out, lines[i]);
+	}
+
+	return join_array(out, '\n');
+}
+
+function merge_managed_hosts(original, entries) {
+	let seen = {};
+	let keys = [];
+
+	for (let i = 0; i < length(entries); i++) {
+		let key = entries[i].domain + ' ' + entries[i].ip;
+
+		if (seen[key] != true) {
+			seen[key] = true;
+			push(keys, key);
+		}
+	}
+
+	// Deterministic lexicographic order without relying on sort() semantics.
+	for (let i = 1; i < length(keys); i++) {
+		let current = keys[i];
+		let j = i - 1;
+
+		while (j >= 0 && keys[j] > current) {
+			keys[j + 1] = keys[j];
+			j--;
+		}
+		keys[j + 1] = current;
+	}
+
+	let base = replace(strip_managed_hosts_block(original), /\s+$/, '');
+
+	if (length(keys) == 0)
+		return (base == '') ? '' : base + '\n';
+
+	let block = CF_HOSTS_BEGIN + '\n' + join_array(keys, '\n') + '\n' + CF_HOSTS_END;
+
+	return (base == '') ? block + '\n' : base + '\n' + block + '\n';
+}
+
+function normalize_list_input(value) {
+	let out = [];
+
+	if (type(value) == 'array') {
+		for (let i = 0; i < length(value); i++)
+			if (type(value[i]) == 'string')
+				push(out, trim_value(value[i]));
+	}
+	else if (type(value) == 'string') {
+		let parts = split(value, /[\s,]+/);
+
+		for (let i = 0; i < length(parts); i++) {
+			let item = trim_value(parts[i]);
+
+			if (item != '')
+				push(out, item);
+		}
+	}
+
+	return out;
+}
+
+function prepare_host_entries(domains_value, ips_value) {
+	let domains = normalize_list_input(domains_value);
+	let ips = normalize_list_input(ips_value);
+	let unique_domains = [];
+	let seen_domains = {};
+	let unique_ips = [];
+	let seen_ips = {};
+
+	for (let i = 0; i < length(domains); i++) {
+		let domain = lc(domains[i]);
+
+		if (!is_valid_domain(domain))
+			return { error: 'Invalid domain: ' + domains[i] };
+
+		if (seen_domains[domain] != true) {
+			seen_domains[domain] = true;
+			push(unique_domains, domain);
+		}
+	}
+
+	if (length(unique_domains) == 0)
+		return { error: 'No target domain configured.' };
+	if (length(unique_domains) > 32)
+		return { error: 'Too many target domains (maximum 32).' };
+
+	for (let i = 0; i < length(ips); i++) {
+		let ip = ips[i];
+
+		if (!is_public_ip_literal(ip))
+			return { error: 'Invalid or non-public IP address: ' + ip };
+
+		if (seen_ips[ip] != true) {
+			seen_ips[ip] = true;
+			push(unique_ips, ip);
+		}
+	}
+
+	if (length(unique_ips) == 0)
+		return { error: 'Select at least one IP address.' };
+	if (length(unique_ips) > 32)
+		return { error: 'Too many IP addresses (maximum 32).' };
+
+	let entries = [];
+
+	for (let i = 0; i < length(unique_domains); i++)
+		for (let j = 0; j < length(unique_ips); j++)
+			push(entries, { domain: unique_domains[i], ip: unique_ips[j] });
+
+	if (length(entries) > 128)
+		return { error: 'Too many hosts entries (maximum 128).' };
+
+	return { domains: unique_domains, ips: unique_ips, entries: entries };
+}
+
+function write_hosts_block(entries) {
+	if (!ensure_dir('/etc/rust-dns') || !ensure_dir(RUST_DNS_RULE_DIR))
+		throw 'cannot create ' + RUST_DNS_RULE_DIR;
+
+	let existed = stat_safe(CF_HOSTS_FILE) != null;
+	let original = '';
+
+	if (existed) {
+		original = readfile(CF_HOSTS_FILE);
+
+		if (type(original) != 'string')
+			throw 'cannot read ' + CF_HOSTS_FILE;
+	}
+
+	let merged = merge_managed_hosts(original, entries);
+	let backup = null;
+
+	if (existed) {
+		backup = CF_HOSTS_FILE + '.bak';
+		write_file_atomic(backup, original);
+	}
+
+	write_file_atomic(CF_HOSTS_FILE, merged);
+
+	return { existed: existed, original: original, backup: backup };
+}
+
+function restore_hosts_file(state) {
+	try {
+		if (state.existed)
+			write_file_atomic(CF_HOSTS_FILE, state.original);
+		else if (stat_safe(CF_HOSTS_FILE) != null)
+			unlink(CF_HOSTS_FILE);
+
+		return true;
+	} catch (e) {
+		return false;
+	}
+}
+
+const methods = {
+	get_version: {
+		call: function() {
+			let res = api_call('/version', '', 'GET');
+			if (!is_error(res) && res.version != null)
+				return res;
+
+			let cmd = exec_sys('/usr/bin/rust-dns version');
+			if (cmd.code === 0 && cmd.stdout != "")
+				return { version: cmd.stdout };
+
+			let mock = read_mock('version');
+			if (mock != null)
+				return mock;
+
+			return { error: 'Unable to determine rust-dns version' };
+		}
+	},
+
+	import_mosdns_preview: {
+		call: function() {
+			try {
+				return build_import_plan();
+			} catch (e) {
+				return {
+					success: false,
+					available: false,
+					error: 'Failed to read the MosDNS configuration: ' + String(e)
+				};
+			}
+		}
+	},
+
+	import_mosdns_apply: {
+		call: function() {
+			try {
+				if (stat_safe(MOSDNS_CONFIG) == null)
+					return {
+						success: false,
+						available: false,
+						error: 'No MosDNS configuration found at ' + MOSDNS_CONFIG + '.'
+					};
+
+				let plan = build_import_plan();
+
+				if (plan.available !== true)
+					return {
+						success: false,
+						available: false,
+						error: plan.error || 'Unable to read the MosDNS configuration.'
+					};
+
+				// Back up first; refuse to touch rust-dns if the backup cannot
+				// be created. The archive includes both MosDNS and existing
+				// rust-dns configs/rules so the import can be undone.
+				let backup = make_backup();
+
+				if (backup.error != null)
+					return {
+						success: false,
+						error: backup.error,
+						warnings: plan.warnings
+					};
+
+				let c = cursor();
+				let section = ensure_rust_dns_section(c);
+
+				if (section == null)
+					return {
+						success: false,
+						error: 'Unable to create the rust-dns UCI section.',
+						backup: backup.path
+					};
+
+				for (let i = 0; i < length(plan.mapped); i++)
+					set_uci_option(c, section, plan.mapped[i]);
+
+				if (!c.commit('rust-dns'))
+					return {
+						success: false,
+						error: 'Failed to commit ' + RUST_DNS_CONFIG + '.',
+						backup: backup.path
+					};
+
+				let warnings = [];
+
+				for (let i = 0; i < length(plan.warnings); i++)
+					push(warnings, plan.warnings[i]);
+
+				let rules = [];
+
+				try {
+					rules = copy_rule_files(plan);
+				} catch (e) {
+					push(warnings, 'Failed to copy rule files: ' + String(e));
+				}
+
+				for (let i = 0; i < length(rules); i++)
+					if (rules[i].status == 'error')
+						push(warnings, 'Failed to copy rule file ' + rules[i].name + ': ' +
+							(rules[i].error || 'unknown error'));
+
+				// The UI reports a non-zero reload code with a translated
+				// message; the raw code/output is still returned for callers.
+				let reload = reload_rust_dns();
+
+				return {
+					success: true,
+					backup: backup.path,
+					imported: plan.mapped,
+					rules: rules,
+					skipped: plan.skipped,
+					warnings: warnings,
+					reload: reload
+				};
+			} catch (e) {
+				return { success: false, error: 'MosDNS import failed: ' + String(e) };
+			}
+		}
+	},
+
+	get_stats: {
+		call: function() {
+			return api_or_mock('/stats', '', 'GET', 'stats');
+		}
+	},
+
+	get_history: {
+		args: { points: 24 },
+		call: function(request) {
+			let max_points = config_int('stats_history_max', 168, 1, 168);
+			let points = to_int(request?.args?.points, 24, 1, max_points);
+			return api_or_mock('/history', 'points=' + points, 'GET', 'history');
+		}
+	},
+
+	get_top: {
+		args: { limit: 10 },
+		call: function(request) {
+			let max_entries = config_int('stats_top_max', 100, 1, 1000);
+			let limit = to_int(request?.args?.limit, 10, 1, max_entries);
+			let res = api_or_mock('/top', 'limit=' + limit, 'GET', 'top');
+
+			if (type(res) == 'object' && !is_error(res))
+				res.leases = leases_or_mock();
+
+			return res;
+		}
+	},
+
+	get_leases: {
+		call: function() {
+			return { leases: leases_or_mock() };
+		}
+	},
+
+	get_logs: {
+		args: { limit: 20, offset: 0, search: '', filter: 'all' },
+		call: function(request) {
+			let capacity = config_int('stats_capacity', 2000, 1, 100000);
+			let max_limit = config_int('stats_logs_max', 200, 1, capacity);
+			let limit = to_int(request?.args?.limit, 20, 1, max_limit);
+			let offset = to_int(request?.args?.offset, 0, 0, null);
+			let search = sanitize_search(request?.args?.search);
+			let filter = sanitize_filter(request?.args?.filter);
+			let query = 'limit=' + limit + '&offset=' + offset +
+				'&search=' + search + '&filter=' + filter;
+
+			let res = api_call('/logs', query, 'GET');
+			if (!is_error(res))
+				return res;
+
+			let mock = read_mock('logs');
+			if (mock != null)
+				return mock_filter_logs(mock, limit, offset, search, filter);
+
+			return res;
+		}
+	},
+
+	clear_query_logs: {
+		call: function() {
+			let res = api_call('/logs/clear', '', 'POST');
+			if (!is_error(res))
+				return res;
+
+			return mock_post_success();
+		}
+	},
+
+	flush_cache: {
+		call: function() {
+			let res = api_call('/cache/flush', '', 'POST');
+			if (!is_error(res))
+				return { success: true };
+
+			if (has_mock_dir())
+				return { success: true, mock: true };
+
+			return { success: false, error: res.error };
+		}
+	},
+
+	print_log: {
+		call: function() {
+			try {
+				let path = log_path();
+				let s = stat(path);
+				if (!s)
+					return { error: 'Log file is not accessible or does not exist.' };
+
+				let f = open(path, 'r');
+				if (!f)
+					return { error: 'Failed to open log file.' };
+
+				if (s.size > LOG_MAX_BYTES)
+					f.seek(-LOG_MAX_BYTES, 2);
+
+				let log = f.read(LOG_MAX_BYTES);
+				if (type(log) != 'string')
+					log = '';
+				f.close();
+
+				if (s.size > LOG_MAX_BYTES) {
+					let idx = index(log, '\n');
+					if (idx != -1)
+						log = substr(log, idx + 1);
+				}
+
+				return { log: log };
+			} catch (e) {
+				return { error: String(e) };
+			}
+		}
+	},
+
+	clean_log: {
+		call: function() {
+			try {
+				let path = log_path();
+				let f = open(path, 'w');
+				if (!f)
+					return { error: 'Failed to open log file for writing.' };
+
+				f.close();
+				return { success: true };
+			} catch (e) {
+				return { error: String(e) };
+			}
+		}
+	},
+
+	start_update: {
+		call: function() {
+			try {
+				if (stat(UPDATE_LOCK))
+					return { success: false, error: 'Another update is already in progress.' };
+
+				if (!stat(UPDATE_SCRIPT))
+					return { success: false, error: 'Update tool is not installed (rust-dns service package).' };
+
+				// Fixed script, fixed log path, no user input. Run the update
+				// tool and append a deterministic marker with its exit code so
+				// the UI can stop polling even if the tool produces no output of
+				// its own. The job runs detached; stdout/stderr go to the log.
+				let cmd = 'mkdir -p /var/rust-dns 2>/dev/null; ' +
+					'( /usr/bin/ucode ' + UPDATE_SCRIPT + ' update --all > ' + UPDATE_LOG + ' 2>&1; ' +
+					'echo "UPDATE_EXITED $?" >> ' + UPDATE_LOG + ' ) >/dev/null 2>&1 &';
+
+				let p = popen(cmd, 'r');
+				if (p)
+					p.close();
+
+				return { success: true };
+			} catch (e) {
+				return { success: false, error: String(e) };
+			}
+		}
+	},
+
+	get_update_log: {
+		call: function() {
+			try {
+				if (stat(UPDATE_LOG)) {
+					let content = readfile(UPDATE_LOG);
+					return { log: (type(content) == 'string') ? content : '' };
+				}
+				return { log: '' };
+			} catch (e) {
+				return { error: String(e) };
+			}
+		}
+	},
+
+	cf_start: {
+		args: { config: {} },
+		call: function(request) {
+			try {
+				if (stat_safe(RUST_DNS_BIN) == null)
+					return {
+						success: false,
+						error: 'rust-dns binary not found at ' + RUST_DNS_BIN +
+							'. Install a rust-dns build that provides cf-optimize.'
+					};
+
+				if (cf_pid_running())
+					return {
+						success: false,
+						busy: true,
+						error: 'A Cloudflare optimization run is already in progress.'
+					};
+
+				let unsupported = check_optimizer_support();
+
+				if (unsupported != null)
+					return { success: false, error: unsupported };
+
+				let built = build_cf_argv(request?.args?.config);
+
+				if (built.error != null)
+					return { success: false, error: built.error };
+
+				if (!ensure_dir('/var/rust-dns') || !ensure_dir(CF_DIR))
+					return { success: false, error: 'Unable to create ' + CF_DIR };
+
+				// Clear stale cancel/pid state so the new run starts clean.
+				try {
+					if (stat_safe(CF_CANCEL) != null)
+						unlink(CF_CANCEL);
+				} catch (e) {}
+				try {
+					if (stat_safe(CF_PID) != null)
+						unlink(CF_PID);
+				} catch (e) {}
+				// Drop a previous run's progress so a launch failure cannot
+				// display stale "done"/"error" state; the new process writes it.
+				try {
+					if (stat_safe(CF_PROGRESS) != null)
+						unlink(CF_PROGRESS);
+				} catch (e) {}
+
+				let command = built.argv;
+
+				// ucode's fs.popen() accepts an argv array and uses execvp(),
+				// so no user value is ever parsed by a shell. A fixed /bin/sh
+				// wrapper is used only for log redirection and backgrounding;
+				// the optimizer argv is passed positionally as "$@".
+				let wrapper = 'log=$1; pid=$2; shift 2; "$@" > "$log" 2>&1 & echo $! > "$pid"';
+				let launch = [ '/bin/sh', '-c', wrapper, 'sh', CF_LOG, CF_PID ];
+
+				for (let i = 0; i < length(command); i++)
+					push(launch, command[i]);
+
+				let p = popen(launch, 'r');
+
+				if (!p)
+					return { success: false, error: 'Unable to launch the optimizer process.' };
+
+				p.read('all');
+				p.close();
+
+				return {
+					success: true,
+					run_id: 'ui-' + current_timestamp(),
+					pid_file: CF_PID,
+					output: CF_OUTPUT,
+					progress: CF_PROGRESS,
+					cancel: CF_CANCEL,
+					log: CF_LOG,
+					argv: built.argv
+				};
+			} catch (e) {
+				return { success: false, error: String(e) };
+			}
+		}
+	},
+
+	cf_cancel: {
+		call: function() {
+			try {
+				if (!ensure_dir('/var/rust-dns') || !ensure_dir(CF_DIR))
+					return { success: false, error: 'Unable to create ' + CF_DIR };
+
+				let f = open(CF_CANCEL, 'w');
+
+				if (!f)
+					return { success: false, error: 'Unable to write ' + CF_CANCEL };
+
+				f.write('1\n');
+				f.close();
+
+				return {
+					success: true,
+					running: cf_pid_running(),
+					cancel_file: CF_CANCEL
+				};
+			} catch (e) {
+				return { success: false, error: String(e) };
+			}
+		}
+	},
+
+	cf_status: {
+		call: function() {
+			let progress = null;
+			let error = null;
+			let res = read_json_file(CF_PROGRESS);
+
+			if (res.value != null)
+				progress = res.value;
+			else if (res.invalid)
+				error = CF_PROGRESS + ' is not valid JSON';
+			else if (res.error)
+				error = res.error;
+
+			let running = cf_pid_running();
+			let state = (progress != null && progress.state != null)
+				? progress.state
+				: (running ? 'running' : 'idle');
+
+			// A killed run can leave a stale "running" progress file. If no
+			// live process exists, surface an error instead of a stuck UI.
+			if (state == 'running' && !running) {
+				state = 'error';
+
+				if (error == null)
+					error = 'No optimizer process is running; the previous run may have been interrupted.';
+			}
+
+			return {
+				available: stat_safe(RUST_DNS_BIN) != null,
+				running: running,
+				state: state,
+				progress: progress,
+				log_tail: read_tail(CF_LOG, 4096),
+				error: error
+			};
+		}
+	},
+
+	cf_results: {
+		call: function() {
+			let res = read_json_file(CF_OUTPUT);
+
+			if (res.value != null)
+				return { success: true, report: res.value, csv: CF_CSV };
+
+			if (res.missing)
+				return { success: false, missing: true, error: 'No result file at ' + CF_OUTPUT };
+			if (res.invalid)
+				return { success: false, error: CF_OUTPUT + ' is not valid JSON' };
+
+			return { success: false, error: res.error || ('Unable to read ' + CF_OUTPUT) };
+		}
+	},
+
+	cf_apply_hosts: {
+		args: { domains: [], ips: [] },
+		call: function(request) {
+			try {
+				if (cf_pid_running())
+					return { success: false, error: 'An optimization run is currently in progress.' };
+
+				let prepared = prepare_host_entries(request?.args?.domains, request?.args?.ips);
+
+				if (prepared.error != null)
+					return { success: false, error: prepared.error };
+
+				let cli = apply_hosts_via_cli(prepared.entries);
+
+				if (!cli_subcommand_missing(cli)) {
+					if (cli.code === 0) {
+						return {
+							success: true,
+							written: length(prepared.entries),
+							domains: prepared.domains,
+							ips: prepared.ips,
+							backup: CF_HOSTS_FILE + '.bak',
+							file: CF_HOSTS_FILE,
+							method: 'cf-apply-hosts',
+							reload: { code: 0, output: cli.output }
+						};
+					}
+
+					return {
+						success: false,
+						error: 'rust-dns cf-apply-hosts failed: ' +
+							(cli.output || ('exit code ' + cli.code)),
+						method: 'cf-apply-hosts',
+						reload: { code: cli.code, output: cli.output },
+						written: 0
+					};
+				}
+
+				/* Older builds without cf-apply-hosts: merge in rpcd using the
+				 * same marker constants and algorithm as the Rust hosts module. */
+				let state = write_hosts_block(prepared.entries);
+				let reload = reload_rust_dns();
+
+				if (reload.code !== 0) {
+					let restored = restore_hosts_file(state);
+
+					return {
+						success: false,
+						error: 'Writing hosts succeeded, but the rust-dns reload failed' +
+							(restored ? '; the previous hosts file was restored.' : '; restoring the previous hosts file also failed.'),
+						restored: restored,
+						reload: reload,
+						written: 0
+					};
+				}
+
+				return {
+					success: true,
+					written: length(prepared.entries),
+					domains: prepared.domains,
+					ips: prepared.ips,
+					backup: state.backup,
+					file: CF_HOSTS_FILE,
+					reload: reload
+				};
+			} catch (e) {
+				return { success: false, error: String(e) };
+			}
+		}
+	},
+
+	cf_clear: {
+		call: function() {
+			try {
+				if (cf_pid_running())
+					return { success: false, error: 'An optimization run is currently in progress.' };
+
+				let removed = [];
+				let hosts_removed = false;
+				let reload = null;
+
+				if (stat_safe(CF_HOSTS_FILE) != null) {
+					let original = readfile(CF_HOSTS_FILE);
+
+					if (type(original) != 'string')
+						return { success: false, error: 'Unable to read ' + CF_HOSTS_FILE };
+
+					if (index(original, CF_HOSTS_BEGIN) >= 0) {
+						let state = write_hosts_block([]);
+						hosts_removed = true;
+						reload = reload_rust_dns();
+
+						if (reload.code !== 0) {
+							let restored = restore_hosts_file(state);
+
+							return {
+								success: false,
+								error: 'Removing the managed hosts block succeeded, but reload failed' +
+									(restored ? '; the previous hosts file was restored.' : '; restoring the previous hosts file also failed.'),
+								restored: restored,
+								reload: reload,
+								removed: removed,
+								hosts_block_removed: false
+							};
+						}
+					}
+				}
+
+				let files = [ CF_OUTPUT, CF_CSV, CF_PROGRESS, CF_CANCEL, CF_LOG, CF_PID ];
+
+				for (let i = 0; i < length(files); i++) {
+					if (stat_safe(files[i]) == null)
+						continue;
+
+					try {
+						unlink(files[i]);
+						push(removed, files[i]);
+					} catch (e) {}
+				}
+
+				return {
+					success: true,
+					removed: removed,
+					hosts_block_removed: hosts_removed,
+					file: CF_HOSTS_FILE,
+					reload: reload
+				};
+			} catch (e) {
+				return { success: false, error: String(e) };
+			}
+		}
+	}
+};
+
+return { "luci.rust_dns": methods };

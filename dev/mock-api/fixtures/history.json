@@ -1,0 +1,28 @@
+{
+  "points": [
+    { "time": 1795392000, "total": 42110, "blocked": 6120, "cached": 24890 },
+    { "time": 1795395600, "total": 38944, "blocked": 5402, "cached": 22011 },
+    { "time": 1795399200, "total": 35120, "blocked": 4987, "cached": 20114 },
+    { "time": 1795402800, "total": 33801, "blocked": 4722, "cached": 19002 },
+    { "time": 1795406400, "total": 34120, "blocked": 4801, "cached": 19444 },
+    { "time": 1795410000, "total": 38220, "blocked": 5310, "cached": 21890 },
+    { "time": 1795413600, "total": 45980, "blocked": 6620, "cached": 27110 },
+    { "time": 1795417200, "total": 61200, "blocked": 8940, "cached": 35600 },
+    { "time": 1795420800, "total": 72040, "blocked": 10320, "cached": 42120 },
+    { "time": 1795424400, "total": 67820, "blocked": 9670, "cached": 39220 },
+    { "time": 1795428000, "total": 64110, "blocked": 9010, "cached": 37104 },
+    { "time": 1795431600, "total": 61830, "blocked": 8710, "cached": 35811 },
+    { "time": 1795435200, "total": 59010, "blocked": 8220, "cached": 34220 },
+    { "time": 1795438800, "total": 57440, "blocked": 7980, "cached": 33110 },
+    { "time": 1795442400, "total": 56120, "blocked": 7810, "cached": 32440 },
+    { "time": 1795446000, "total": 58900, "blocked": 8110, "cached": 34120 },
+    { "time": 1795449600, "total": 63440, "blocked": 8890, "cached": 36810 },
+    { "time": 1795453200, "total": 67820, "blocked": 9460, "cached": 39120 },
+    { "time": 1795456800, "total": 72110, "blocked": 10012, "cached": 41820 },
+    { "time": 1795460400, "total": 76040, "blocked": 10720, "cached": 44110 },
+    { "time": 1795464000, "total": 73120, "blocked": 10340, "cached": 42210 },
+    { "time": 1795467600, "total": 68220, "blocked": 9610, "cached": 39311 },
+    { "time": 1795471200, "total": 59810, "blocked": 8410, "cached": 34220 },
+    { "time": 1795474800, "total": 48210, "blocked": 6710, "cached": 28140 }
+  ]
+}

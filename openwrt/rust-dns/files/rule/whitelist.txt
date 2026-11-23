@@ -1,0 +1,2 @@
+# rust-dns whitelist rules
+# One domain per line. Domains here always use the local DNS upstream.

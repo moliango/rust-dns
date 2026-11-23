@@ -1,0 +1,226 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# Local-development stub for the rust-dns CLI.  It implements the contract the
+# service package relies on:
+#
+#     rust-dns version
+#     rust-dns check -c <file>
+#     rust-dns start -c <file> -d <dir>
+#
+# It is NOT installed by the package.  The package tests and dev/stub use it to
+# exercise init/config generation and the last-good rollback path before the
+# real Rust binary is available.
+#
+# `start` runs in the foreground (like the real binary under procd).  For
+# failure-injection tests set RUST_DNS_STUB_FAIL_AFTER=<seconds>; the process
+# then exits non-zero after that delay so the init watchdog can roll back.
+# Set RUST_DNS_STUB_ONCE=1 to exit cleanly after one second.
+
+set -u
+
+VERSION="0.1.0"
+TARGET="${RUST_DNS_STUB_TARGET:-stub-x86_64-linux-musl}"
+
+usage() {
+    cat <<'EOF'
+Usage:
+  rust-dns version
+  rust-dns check -c <file>
+  rust-dns start -c <file> -d <dir>
+EOF
+}
+
+fail() {
+    printf 'rust-dns: %s\n' "$*" >&2
+    exit 1
+}
+
+check_json() {
+    # check_json <file>
+    # Mirrors the real CLI: JSON and YAML custom configs are both accepted.
+    # Generated JSON additionally gets the field checks the generator relies
+    # on; a custom YAML document is only parsed and required to be a mapping,
+    # exactly like the real binary's check.
+    if command -v python3 >/dev/null 2>&1; then
+        python3 - "$1" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+try:
+    with open(path, encoding='utf-8') as fh:
+        text = fh.read()
+except Exception as exc:
+    print('rust-dns: check: cannot read %s: %s' % (path, exc), file=sys.stderr)
+    sys.exit(1)
+
+strict = True
+try:
+    doc = json.loads(text)
+except Exception as json_exc:
+    strict = False
+    try:
+        import yaml
+        doc = yaml.safe_load(text)
+    except ImportError:
+        # No YAML parser on this host: structural fallback, matching the
+        # real binary's "must parse to a mapping" contract.
+        lines = text.splitlines()
+        if (any(line.startswith('api:') for line in lines) and
+                any(line.startswith('plugins:') for line in lines)):
+            sys.exit(0)
+        print('rust-dns: check: invalid JSON/YAML: %s' % json_exc, file=sys.stderr)
+        sys.exit(1)
+    except Exception as yaml_exc:
+        print('rust-dns: check: invalid JSON/YAML: %s; %s'
+              % (json_exc, yaml_exc), file=sys.stderr)
+        sys.exit(1)
+
+if not isinstance(doc, dict):
+    print('rust-dns: check: document must be a mapping', file=sys.stderr)
+    sys.exit(1)
+
+if not strict:
+    # Custom YAML is validated by the daemon's real schema, not here.
+    sys.exit(0)
+
+def bad(msg):
+    print('rust-dns: check: %s' % msg, file=sys.stderr)
+    sys.exit(1)
+
+api = doc.get('api')
+if not isinstance(api, dict) or not isinstance(api.get('http'), str):
+    bad('api.http is required')
+http = api['http']
+host, sep, port = http.rpartition(':')
+if not sep:
+    bad('api.http must be host:port, got %r' % http)
+if not port.isdigit() or not (1 <= int(port) <= 65535):
+    bad('api.http port out of range: %r' % http)
+host = host.strip('[]')
+if host not in ('127.0.0.1', '::1'):
+    bad('api.http host must be loopback in v1, got %r' % host)
+
+plugins = doc.get('plugins')
+if not isinstance(plugins, list) or not plugins:
+    bad('plugins must be a non-empty array')
+
+tags = set()
+for plugin in plugins:
+    if not isinstance(plugin, dict) or 'tag' not in plugin or 'type' not in plugin:
+        bad('each plugin needs tag and type')
+    tags.add(plugin['tag'])
+    if plugin['type'] in ('udp_server', 'tcp_server'):
+        listen = plugin.get('args', {}).get('listen')
+        if not isinstance(listen, str) or listen.rpartition(':')[2] == '':
+            bad('server plugin %s has no listen address' % plugin['tag'])
+        p = listen.rpartition(':')[2]
+        if not p.isdigit() or not (1 <= int(p) <= 65535):
+            bad('server plugin %s listen port out of range' % plugin['tag'])
+
+if 'stats_collector' in tags:
+    stats = next(p for p in plugins if p['tag'] == 'stats_collector')
+    args = stats.get('args', {})
+    for key in ('enabled', 'capacity', 'dump_file', 'dump_interval',
+                'history_max', 'top_max', 'logs_max'):
+        if key not in args:
+            bad('stats_collector.args.%s is required' % key)
+PY
+        return $?
+    fi
+
+    # Fallback for hosts without python3: structural smoke test only.
+    [ -s "$1" ] || fail "check: empty configuration: $1"
+    if ! grep -q '"plugins"' "$1" && ! grep -q '^plugins:' "$1"; then
+        fail "check: configuration has no plugins section: $1"
+    fi
+    if ! grep -q '"api"' "$1" && ! grep -q '^api:' "$1"; then
+        fail "check: configuration has no api section: $1"
+    fi
+    return 0
+}
+
+cmd_version() {
+    printf 'rust-dns %s (%s)\n' "$VERSION" "$TARGET"
+}
+
+cmd_check() {
+    _file=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -c|--config)
+                _opt=$1
+                shift
+                [ $# -gt 0 ] || fail "check: $_opt requires a path"
+                _file=$1
+                ;;
+            *)
+                fail "check: unknown argument: $1"
+                ;;
+        esac
+        shift
+    done
+    [ -n "$_file" ] || fail "check: -c <file> is required"
+    [ -f "$_file" ] || fail "check: no such file: $_file"
+    [ -s "$_file" ] || fail "check: empty file: $_file"
+    check_json "$_file"
+}
+
+cmd_start() {
+    _file=""
+    _dir=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -c|--config)
+                _opt=$1
+                shift
+                [ $# -gt 0 ] || fail "start: $_opt requires a path"
+                _file=$1
+                ;;
+            -d|--data)
+                _opt=$1
+                shift
+                [ $# -gt 0 ] || fail "start: $_opt requires a path"
+                _dir=$1
+                ;;
+            *)
+                fail "start: unknown argument: $1"
+                ;;
+        esac
+        shift
+    done
+    [ -n "$_file" ] || fail "start: -c <file> is required"
+    check_json "$_file"
+    [ -n "$_dir" ] && mkdir -p "$_dir" 2>/dev/null || true
+
+    if [ -n "${RUST_DNS_STUB_FAIL_AFTER:-}" ]; then
+        # Failure injection for the watchdog / last-good rollback tests.
+        sleep "$RUST_DNS_STUB_FAIL_AFTER"
+        printf 'rust-dns: stub: simulated startup failure\n' >&2
+        exit 1
+    fi
+
+    if [ "${RUST_DNS_STUB_ONCE:-0}" = "1" ]; then
+        sleep 1
+        exit 0
+    fi
+
+    printf 'rust-dns: stub: listening with %s (data %s)\n' "$_file" "${_dir:-none}"
+    trap 'exit 0' TERM INT
+    while :; do
+        sleep 3600
+    done
+}
+
+[ $# -gt 0 ] || { usage >&2; exit 1; }
+_cmd=$1
+shift
+
+case "$_cmd" in
+    version) cmd_version ;;
+    check) cmd_check "$@" ;;
+    start) cmd_start "$@" ;;
+    -h|--help|help) usage ;;
+    *) usage >&2; exit 1 ;;
+esac

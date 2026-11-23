@@ -1,0 +1,172 @@
+name: CI and Release
+
+on:
+  push:
+    branches: [master, main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version without the leading v (e.g. 0.1.0)"
+        required: false
+        default: "0.1.0"
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_TOOLCHAIN: "1.100.0"
+
+jobs:
+  test:
+    name: Test and lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust-dns
+
+      - name: Format
+        working-directory: rust-dns
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        working-directory: rust-dns
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test
+        working-directory: rust-dns
+        run: cargo test --workspace
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: LuCI JS syntax
+        run: |
+          for f in luci-app-rust-dns/htdocs/luci-static/resources/view/rust-dns/*.js; do
+            node --check "$f"
+          done
+
+      - name: Mock API and shell syntax
+        run: |
+          python3 -m py_compile dev/mock-api/server.py
+          for f in openwrt/rust-dns/files/rust-dns.init \
+                   openwrt/rust-dns/files/config.sh \
+                   openwrt/rust-dns/files/hotplug-iface \
+                   openwrt/rust-dns/files/uci-defaults/90-rust-dns \
+                   dev/stub/rust-dns; do
+            sh -n "$f"
+          done
+
+      - name: Service package golden tests
+        run: sh openwrt/rust-dns/tests/config_generator/run.sh
+
+  build:
+    name: Build ${{ matrix.arch }}
+    needs: test
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            arch: x86_64
+          - target: aarch64-unknown-linux-musl
+            arch: aarch64
+          - target: armv7-unknown-linux-musleabihf
+            arch: armv7
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust-dns
+
+      - name: Install Zig
+        uses: goto-bus-stop/setup-zig@v2
+
+      - name: Install cargo-zigbuild
+        run: cargo install cargo-zigbuild --locked
+
+      - name: Build static binary
+        working-directory: rust-dns
+        run: cargo zigbuild --release --locked --target ${{ matrix.target }} -p rust-dns
+
+      - name: Package
+        id: package
+        run: |
+          set -eu
+          VERSION="${{ github.event.inputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          mkdir -p out
+          BIN="rust-dns/target/${{ matrix.target }}/release/rust-dns"
+          file "$BIN"
+          tar -czf "out/rust-dns-${VERSION}-${{ matrix.arch }}.tar.gz" -C "$(dirname "$BIN")" rust-dns
+          (cd out && sha256sum "rust-dns-${VERSION}-${{ matrix.arch }}.tar.gz" > "rust-dns-${VERSION}-${{ matrix.arch }}.tar.gz.sha256")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-dns-${{ matrix.arch }}
+          path: out/*
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Build source bundle and checksums
+        run: |
+          set -eu
+          VERSION="${{ github.event.inputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          tar -czf "rust-dns-${VERSION}-openwrt-src.tar.gz" \
+            openwrt/rust-dns luci-app-rust-dns README.md README.zh-CN.md LICENSE
+          (cd artifacts && sha256sum *.tar.gz > SHA256SUMS)
+          cat artifacts/SHA256SUMS
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v{0}', github.event.inputs.version) }}
+          generate_release_notes: true
+          files: |
+            artifacts/*.tar.gz
+            artifacts/*.sha256
+            artifacts/SHA256SUMS
+            rust-dns-*-openwrt-src.tar.gz

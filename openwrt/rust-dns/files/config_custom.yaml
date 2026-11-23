@@ -1,0 +1,26 @@
+# rust-dns custom configuration (conffile).
+#
+# Used only when /etc/config/rust-dns sets:
+#     option configfile '/etc/rust-dns/config_custom.yaml'
+#
+# The init script copies this file to /var/etc/rust-dns/config.json.tmp, runs
+# `rust-dns check -c` on it and then installs it atomically.  Keep the top-level
+# keys (`log`, `api`, `include`, `plugins`) stable; the stats API reads
+# `api.http` and `plugins[tag=stats_collector].args`.
+#
+# This shipped document is a minimal template.  A useful configuration needs
+# at least one server plugin and a sequence plugin; see
+# /var/etc/rust-dns/config.json for the generated shape and adapt it here.
+
+log:
+  level: error
+  file: /var/log/rust-dns.log
+  size: "1"
+  backups: 2
+
+api:
+  http: 127.0.0.1:9091
+
+include: []
+
+plugins: []

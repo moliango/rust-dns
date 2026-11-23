@@ -1,0 +1,9 @@
+{
+  "total_queries": 3,
+  "blocked_queries": 1,
+  "cached_queries": 1,
+  "blocked_percentage": 33.33,
+  "cached_percentage": 33.33,
+  "avg_latency_ms": 4.0,
+  "qps": 0.3
+}

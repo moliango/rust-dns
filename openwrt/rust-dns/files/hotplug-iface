@@ -1,0 +1,42 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# Rebuild the firewall4 DNS hijack include after an interface comes up.  The
+# include can disappear when firewall4 is reinstalled or when /usr is
+# remounted; recreating it here avoids losing the redirect until the next
+# service reload.  Debounced per interface so a burst of ifup events only
+# triggers one rebuild.
+
+[ "$ACTION" = "ifup" ] || exit 0
+[ -x /etc/init.d/rust-dns ] || exit 0
+
+. /lib/functions.sh
+
+config_load rust-dns 2>/dev/null || exit 0
+config_get enabled config enabled 0
+config_get local_dns_redirect config local_dns_redirect 0
+
+case "$enabled" in
+    1|on|true|yes|enabled) ;;
+    *) exit 0 ;;
+esac
+case "$local_dns_redirect" in
+    1|on|true|yes|enabled) ;;
+    *) exit 0 ;;
+esac
+
+NFT_INCLUDE="/usr/share/nftables.d/chain-post/dstnat/99-rust-dns.nft"
+[ -f "$NFT_INCLUDE" ] && exit 0
+
+mkdir -p /var/run 2>/dev/null || true
+IFACE_SAFE="$(printf '%s' "${INTERFACE:-iface}" | tr -cd 'A-Za-z0-9_.@-')"
+[ -n "$IFACE_SAFE" ] || IFACE_SAFE=iface
+STAMP="/var/run/rust-dns-hotplug-$IFACE_SAFE"
+[ -f "$STAMP" ] && exit 0
+: > "$STAMP"
+
+logger -t rust-dns "rebuilding nft hijack after ifup on ${INTERFACE:-unknown}" 2>/dev/null || true
+/etc/init.d/rust-dns refresh_firewall >/dev/null 2>&1 &
+
+( sleep 3; rm -f "$STAMP" ) >/dev/null 2>&1 &
+exit 0

@@ -1,0 +1,3 @@
+# rust-dns hosts rules
+# One "domain ip" pair per line, for example: example.com 10.0.0.1
+# The Cloudflare IP optimizer task writes this file.

@@ -1,0 +1,12 @@
+{
+  "client_ip": "192.168.1.10",
+  "domain": "ads.example",
+  "qtype": 1,
+  "status": 0,
+  "elapsed_ms": 2,
+  "answers": [],
+  "is_blocked": true,
+  "is_cached": false,
+  "upstream": "",
+  "rule": "ads"
+}

@@ -1,0 +1,30 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# First-install defaults.  Never overwrite values the user already has:
+# every option is only assigned when `uci -q get` reports it missing.
+# This script is removed by /etc/uci-defaults processing after it succeeds.
+
+[ -f /etc/config/rust-dns ] || exit 0
+command -v uci >/dev/null 2>&1 || exit 0
+
+mkdir -p /etc/rust-dns/rule /var/etc/rust-dns /var/rust-dns 2>/dev/null || true
+chmod 0755 /etc/rust-dns /etc/rust-dns/rule /var/etc/rust-dns /var/rust-dns 2>/dev/null || true
+chmod 0644 /etc/rust-dns/rule/*.txt 2>/dev/null || true
+
+set_default() {
+    uci -q get "rust-dns.config.$1" >/dev/null 2>&1 || uci -q set "rust-dns.config.$1=$2"
+}
+
+set_default enabled '0'
+set_default configfile '/var/etc/rust-dns/config.json'
+set_default listen_address '0.0.0.0'
+set_default listen_port '5335'
+set_default listen_port_api '9091'
+set_default api_listen_address '127.0.0.1'
+set_default stats_collector '1'
+set_default redirect '0'
+set_default local_dns_redirect '0'
+
+uci -q commit rust-dns 2>/dev/null || true
+exit 0

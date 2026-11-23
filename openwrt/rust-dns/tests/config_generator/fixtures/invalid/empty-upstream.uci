@@ -1,0 +1,5 @@
+config rust-dns 'config'
+	option enabled '1'
+	option configfile '/var/etc/rust-dns/config.json'
+	option listen_address '0.0.0.0'
+	option listen_port '5335'

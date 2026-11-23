@@ -1,0 +1,38 @@
+{
+  "top_domains": [
+    { "domain": "www.google.com", "count": 48210 },
+    { "domain": "api.github.com", "count": 31120 },
+    { "domain": "cdn.jsdelivr.net", "count": 28940 },
+    { "domain": "www.youtube.com", "count": 26011 },
+    { "domain": "fonts.gstatic.com", "count": 24110 },
+    { "domain": "api.telegram.org", "count": 19820 },
+    { "domain": "www.baidu.com", "count": 18740 },
+    { "domain": "registry.npmjs.org", "count": 16120 },
+    { "domain": "raw.githubusercontent.com", "count": 14980 },
+    { "domain": "www.cloudflare.com", "count": 12210 }
+  ],
+  "top_blocked": [
+    { "domain": "ads.example.com", "count": 9800 },
+    { "domain": "tracker.example.net", "count": 8420 },
+    { "domain": "metrics.example.org", "count": 7110 },
+    { "domain": "doubleclick.net", "count": 6420 },
+    { "domain": "analytics.example.com", "count": 5310 },
+    { "domain": "pixel.example.net", "count": 4820 },
+    { "domain": "telemetry.example.org", "count": 4110 },
+    { "domain": "beacon.example.com", "count": 3610 },
+    { "domain": "adservice.example.net", "count": 3020 },
+    { "domain": "spam.example.org", "count": 2210 }
+  ],
+  "top_clients": [
+    { "client_ip": "192.168.1.100", "count": 184210 },
+    { "client_ip": "192.168.1.101", "count": 142980 },
+    { "client_ip": "192.168.1.102", "count": 111240 },
+    { "client_ip": "192.168.1.50", "count": 98210 },
+    { "client_ip": "192.168.1.51", "count": 88110 },
+    { "client_ip": "10.0.0.20", "count": 74120 },
+    { "client_ip": "10.0.0.21", "count": 64220 },
+    { "client_ip": "192.168.1.110", "count": 59110 },
+    { "client_ip": "192.168.1.111", "count": 48120 },
+    { "client_ip": "fd00::1:2", "count": 33110 }
+  ]
+}

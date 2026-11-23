@@ -1,0 +1,9 @@
+{
+  "client_ip": "192.168.1.40",
+  "domain": "empty.example",
+  "qtype": 16,
+  "status": 0,
+  "elapsed_ms": 3,
+  "is_blocked": false,
+  "is_cached": false
+}

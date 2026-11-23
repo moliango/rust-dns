@@ -1,0 +1,8 @@
+# managed by rust-dns; inserted into the firewall4 dstnat chain through
+# /usr/share/nftables.d/chain-post/dstnat/99-rust-dns.nft
+#
+# @IFACE@ and @PORT@ are substituted by /etc/init.d/rust-dns.  Only forwarded
+# (prerouting) traffic is redirected; the router's own output path is left
+# alone so rust-dns upstream queries are not hijacked again.
+iifname "@IFACE@" ip daddr != 127.0.0.1 udp dport 53 counter redirect to :@PORT@
+iifname "@IFACE@" ip daddr != 127.0.0.1 tcp dport 53 counter redirect to :@PORT@

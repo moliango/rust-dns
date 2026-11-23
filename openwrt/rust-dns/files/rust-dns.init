@@ -1,0 +1,699 @@
+#!/bin/sh /etc/rc.common
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# procd lifecycle for rust-dns.
+#
+# Responsibilities are deliberately split:
+#   * /usr/share/rust-dns/config.sh turns UCI into deterministic JSON.
+#   * this script only validates, swaps files atomically, starts procd and
+#     manages the dnsmasq / firewall4 / cron integrations.
+#
+# Failure model (design.md sections 5 and 6):
+#   * a config that fails `rust-dns check` never replaces config.json and the
+#     running instance is left alone;
+#   * a config survives 5s only after the watchdog sees a live instance, then
+#     it becomes config.json.last-good;
+#   * a process that dies within 5s triggers exactly one rollback, guarded by
+#     a configuration hash, and a second failure stops the service.
+
+START=19
+USE_PROCD=1
+
+. /lib/functions.sh
+
+PKG_NAME="rust-dns"
+RUST_DNS_BIN="/usr/bin/rust-dns"
+CONFIG_SH="/usr/share/rust-dns/config.sh"
+NFT_TEMPLATE="/usr/share/rust-dns/nft-hijack.nft"
+DNSMASQ_TEMPLATE="/usr/share/rust-dns/dnsmasq-rust-dns.conf"
+
+RUNDIR="/var/etc/rust-dns"
+DATADIR="/var/rust-dns"
+CONFIG_JSON="$RUNDIR/config.json"
+CONFIG_TMP="$RUNDIR/config.json.tmp"
+LAST_GOOD="$RUNDIR/config.json.last-good"
+ERROR_LOG="$RUNDIR/last-error.log"
+STATE_FILE="$RUNDIR/state"
+ROLLBACK_MARKER="$RUNDIR/.rollback-attempt"
+USE_LAST_GOOD="$RUNDIR/.use-last-good"
+CUSTOM_CONFIG="/etc/rust-dns/config_custom.yaml"
+
+DNSMASQ_CONF="/tmp/dnsmasq.d/rust-dns.conf"
+NFT_INCLUDE_DIR="/usr/share/nftables.d/chain-post/dstnat"
+NFT_INCLUDE="$NFT_INCLUDE_DIR/99-rust-dns.nft"
+CRON_FILE="/etc/crontabs/root"
+
+WATCHDOG_PID="/var/run/rust-dns-watchdog.pid"
+WATCHDOG_DELAY="${RUST_DNS_WATCHDOG_DELAY:-5}"
+
+# Set by reload_service after it has rendered and validated CONFIG_JSON, so the
+# following start_service does not render a second time (and cannot fail after
+# the old instance has already been stopped).
+RENDER_DONE=0
+
+EXTRA_COMMANDS="refresh_firewall"
+EXTRA_HELP="	refresh_firewall Rebuild the firewall4 DNS hijack include"
+
+is_true() {
+    case "$1" in
+        1|on|true|yes|enabled) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# valid_port <value>
+# Ports are interpolated into sed scripts and nft rules, so keep them strictly
+# numeric even though the generator normally validates them first.
+valid_port() {
+    case "$1" in
+        ''|*[!0-9]*) return 1 ;;
+    esac
+    [ "$1" -ge 1 ] && [ "$1" -le 65535 ]
+}
+
+load_config() {
+    config_load "$PKG_NAME" 2>/dev/null || true
+    config_get cfg_enabled config enabled 0
+    config_get cfg_configfile config configfile "$CONFIG_JSON"
+    config_get cfg_listen_address config listen_address 0.0.0.0
+    config_get cfg_listen_port config listen_port 5335
+    config_get cfg_log_file config log_file /var/log/rust-dns.log
+    config_get cfg_log_level config log_level error
+    config_get cfg_redirect config redirect 0
+    config_get cfg_local_dns_redirect config local_dns_redirect 0
+    config_get cfg_geo_auto_update config geo_auto_update 0
+    config_get cfg_geo_update_day_time config geo_update_day_time 2
+    config_get cfg_geo_update_week_time config geo_update_week_time '*'
+}
+
+ensure_dirs() {
+    mkdir -p "$RUNDIR" "$DATADIR" 2>/dev/null || true
+    chmod 0755 "$RUNDIR" "$DATADIR" 2>/dev/null || true
+    case "$cfg_log_file" in
+        */*)
+            _logdir="${cfg_log_file%/*}"
+            [ -n "$_logdir" ] && mkdir -p "$_logdir" 2>/dev/null || true
+            ;;
+    esac
+}
+
+write_state() {
+    mkdir -p "$RUNDIR" 2>/dev/null || true
+    printf '%s\n' "$1" > "$STATE_FILE" 2>/dev/null || true
+}
+
+write_error() {
+    # write_error <stage> <detail>
+    _stage="$1"
+    _detail="$2"
+    mkdir -p "$RUNDIR" 2>/dev/null || true
+    _summary="$(printf '%s' "$_detail" | sed -n '1p')"
+    {
+        printf 'rust-dns: %s: %s\n' "$_stage" "$_summary"
+        printf '%s\n' "$_detail"
+    } > "$ERROR_LOG.new" 2>/dev/null || return 1
+    _size="$(wc -c < "$ERROR_LOG.new" 2>/dev/null | tr -d ' ')"
+    case "$_size" in
+        ''|*[!0-9]*) _size=0 ;;
+    esac
+    if [ "$_size" -gt 65536 ]; then
+        tail -c 65536 "$ERROR_LOG.new" > "$ERROR_LOG.new.2" 2>/dev/null &&
+            mv -f "$ERROR_LOG.new.2" "$ERROR_LOG.new"
+    fi
+    mv -f "$ERROR_LOG.new" "$ERROR_LOG" 2>/dev/null || true
+    logger -t rust-dns "$_stage: $_summary" 2>/dev/null || true
+}
+
+logger_warn() {
+    logger -t rust-dns "warning: $*" 2>/dev/null || true
+}
+
+config_hash() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$CONFIG_JSON" 2>/dev/null | awk '{print $1}'
+    elif command -v md5sum >/dev/null 2>&1; then
+        md5sum "$CONFIG_JSON" 2>/dev/null | awk '{print $1}'
+    else
+        cksum "$CONFIG_JSON" 2>/dev/null | awk '{print $1 "-" $2}'
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Config generation and validation
+# ---------------------------------------------------------------------------
+
+render_and_check() {
+    ensure_dirs
+    rm -f "$CONFIG_TMP" "$RUNDIR/render.err"
+
+    if [ "$cfg_configfile" = "$CUSTOM_CONFIG" ]; then
+        if [ ! -r "$CUSTOM_CONFIG" ]; then
+            write_error "render" "custom config is not readable: $CUSTOM_CONFIG"
+            write_state failed
+            return 1
+        fi
+        cp "$CUSTOM_CONFIG" "$CONFIG_TMP" 2>/dev/null || {
+            write_error "render" "failed to copy $CUSTOM_CONFIG"
+            write_state failed
+            return 1
+        }
+    else
+        if [ ! -r "$CONFIG_SH" ]; then
+            write_error "render" "generator not found: $CONFIG_SH"
+            write_state failed
+            return 1
+        fi
+        if ! sh "$CONFIG_SH" render > "$CONFIG_TMP" 2> "$RUNDIR/render.err"; then
+            write_error "render" "$(cat "$RUNDIR/render.err" 2>/dev/null)"
+            rm -f "$CONFIG_TMP" "$RUNDIR/render.err"
+            write_state failed
+            return 1
+        fi
+        if [ -s "$RUNDIR/render.err" ]; then
+            while IFS= read -r _line; do
+                logger -t rust-dns "$_line" 2>/dev/null || true
+            done < "$RUNDIR/render.err"
+        fi
+        rm -f "$RUNDIR/render.err"
+    fi
+
+    chmod 0644 "$CONFIG_TMP" 2>/dev/null || true
+
+    if [ ! -x "$RUST_DNS_BIN" ]; then
+        write_error "check" "binary not found or not executable: $RUST_DNS_BIN"
+        rm -f "$CONFIG_TMP"
+        write_state failed
+        return 1
+    fi
+
+    if ! _check_out="$("$RUST_DNS_BIN" check -c "$CONFIG_TMP" 2>&1)"; then
+        write_error "check" "$_check_out"
+        rm -f "$CONFIG_TMP"
+        write_state failed
+        return 1
+    fi
+
+    # The new configuration passed validation; drop the previous error.  The
+    # coexist warnings written after this point intentionally survive.
+    rm -f "$ERROR_LOG"
+
+    # Same filesystem as CONFIG_TMP, so the rename is atomic.
+    if ! mv -f "$CONFIG_TMP" "$CONFIG_JSON"; then
+        write_error "install" "failed to install $CONFIG_JSON"
+        write_state failed
+        return 1
+    fi
+    return 0
+}
+
+check_mosdns_conflict() {
+    command -v uci >/dev/null 2>&1 || return 0
+    _mosdns_port="$(uci -q get mosdns.config.listen_port 2>/dev/null)"
+    [ -n "$_mosdns_port" ] || return 0
+    [ "$_mosdns_port" = "$cfg_listen_port" ] || return 0
+    _msg="listen_port $cfg_listen_port conflicts with mosdns; set rust-dns listen_port to 5336"
+    logger_warn "$_msg"
+    write_error "coexist" "$_msg"
+}
+
+# ---------------------------------------------------------------------------
+# dnsmasq forwarding
+# ---------------------------------------------------------------------------
+
+dnsmasq_reload() {
+    [ -x /etc/init.d/dnsmasq ] && /etc/init.d/dnsmasq reload >/dev/null 2>&1 || true
+}
+
+configure_dnsmasq() {
+    if ! is_true "$cfg_redirect"; then
+        remove_dnsmasq
+        return 0
+    fi
+
+    if ! valid_port "$cfg_listen_port"; then
+        logger_warn "invalid listen_port '$cfg_listen_port'; dnsmasq forwarding skipped"
+        rm -f "$DNSMASQ_CONF"
+        return 0
+    fi
+
+    if [ ! -d /tmp/dnsmasq.d ]; then
+        logger_warn "dnsmasq include directory /tmp/dnsmasq.d is missing; forwarding not configured"
+        rm -f "$DNSMASQ_CONF"
+        return 0
+    fi
+
+    if ! grep -qs 'conf-dir=/tmp/dnsmasq.d' /var/etc/dnsmasq.conf.* 2>/dev/null; then
+        logger_warn "dnsmasq does not include /tmp/dnsmasq.d; forwarding not configured"
+        rm -f "$DNSMASQ_CONF"
+        return 0
+    fi
+
+    # Warn (never delete) when another service injects server= entries.
+    for _other in /tmp/dnsmasq.d/*.conf; do
+        [ -e "$_other" ] || continue
+        [ "$_other" = "$DNSMASQ_CONF" ] && continue
+        if grep -qs '^server=' "$_other"; then
+            logger_warn "another dnsmasq include provides server= ($_other); keeping rust-dns.conf separate"
+            break
+        fi
+    done
+
+    if ! sed "s/@PORT@/$cfg_listen_port/g" "$DNSMASQ_TEMPLATE" > "$DNSMASQ_CONF.tmp" 2>/dev/null; then
+        logger_warn "failed to render $DNSMASQ_TEMPLATE"
+        rm -f "$DNSMASQ_CONF.tmp"
+        return 0
+    fi
+    mv -f "$DNSMASQ_CONF.tmp" "$DNSMASQ_CONF"
+    chmod 0644 "$DNSMASQ_CONF" 2>/dev/null || true
+    dnsmasq_reload
+}
+
+remove_dnsmasq() {
+    if [ -f "$DNSMASQ_CONF" ]; then
+        rm -f "$DNSMASQ_CONF"
+        dnsmasq_reload
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# firewall4 DNS hijack
+# ---------------------------------------------------------------------------
+
+fw4_reload() {
+    if command -v fw4 >/dev/null 2>&1; then
+        fw4 reload >/dev/null 2>&1 || true
+    elif [ -x /etc/init.d/firewall ]; then
+        /etc/init.d/firewall reload >/dev/null 2>&1 || true
+    fi
+}
+
+lan_iface() {
+    _if=""
+    if command -v uci >/dev/null 2>&1; then
+        _if="$(uci -q get network.lan.device 2>/dev/null)"
+        [ -n "$_if" ] || _if="$(uci -q get network.lan.ifname 2>/dev/null)"
+    fi
+    [ -n "$_if" ] || _if="br-lan"
+    _if="${_if%% *}"
+    # Interface names are trusted config, but keep them to a safe alphabet
+    # before they are interpolated into a sed script and nft rules.
+    _if="$(printf '%s' "$_if" | tr -cd 'A-Za-z0-9_.@-')"
+    [ -n "$_if" ] || _if="br-lan"
+    printf '%s' "$_if"
+}
+
+nft_other_hijack_exists() {
+    [ -d "$NFT_INCLUDE_DIR" ] || return 1
+    for _f in "$NFT_INCLUDE_DIR"/*.nft; do
+        [ -e "$_f" ] || continue
+        [ "$_f" = "$NFT_INCLUDE" ] && continue
+        grep -qsE 'dport[[:space:]]+53' "$_f" && return 0
+    done
+    return 1
+}
+
+nft_fallback_remove() {
+    command -v nft >/dev/null 2>&1 || return 0
+    nft -a list chain inet fw4 dstnat 2>/dev/null |
+        awk '/comment "rust-dns"/ { for (i = 1; i < NF; i++) if ($i == "#" && $(i + 1) == "handle") print $(i + 2) }' |
+        while IFS= read -r _h; do
+            [ -n "$_h" ] || continue
+            nft delete rule inet fw4 dstnat handle "$_h" >/dev/null 2>&1 || true
+        done
+}
+
+nft_fallback_install() {
+    command -v nft >/dev/null 2>&1 || {
+        logger_warn "nft is not available; DNS hijack disabled"
+        return 0
+    }
+    if ! nft list chain inet fw4 dstnat >/dev/null 2>&1; then
+        logger_warn "firewall4 dstnat chain not found; DNS hijack disabled"
+        return 0
+    fi
+    nft_fallback_remove
+    _iface="$(lan_iface)"
+    nft add rule inet fw4 dstnat iifname "$_iface" ip daddr != 127.0.0.1 udp dport 53 counter redirect to ":$cfg_listen_port" comment '"rust-dns"' >/dev/null 2>&1 || true
+    nft add rule inet fw4 dstnat iifname "$_iface" ip daddr != 127.0.0.1 tcp dport 53 counter redirect to ":$cfg_listen_port" comment '"rust-dns"' >/dev/null 2>&1 || true
+    case "$cfg_listen_address" in
+        *:*)
+            nft add rule inet fw4 dstnat iifname "$_iface" ip6 daddr != ::1 udp dport 53 counter redirect to ":$cfg_listen_port" comment '"rust-dns"' >/dev/null 2>&1 || true
+            nft add rule inet fw4 dstnat iifname "$_iface" ip6 daddr != ::1 tcp dport 53 counter redirect to ":$cfg_listen_port" comment '"rust-dns"' >/dev/null 2>&1 || true
+            ;;
+    esac
+}
+
+configure_nft() {
+    if ! is_true "$cfg_local_dns_redirect"; then
+        remove_nft
+        return 0
+    fi
+
+    if ! valid_port "$cfg_listen_port"; then
+        logger_warn "invalid listen_port '$cfg_listen_port'; DNS hijack skipped"
+        remove_nft
+        return 0
+    fi
+
+    if nft_other_hijack_exists; then
+        _msg="another DNS redirect exists in firewall4 dstnat; skipping rust-dns hijack"
+        logger_warn "$_msg"
+        write_error "coexist" "$_msg"
+        # Do not leave a previous rust-dns include in place next to another
+        # service's redirect.
+        if [ -f "$NFT_INCLUDE" ]; then
+            rm -f "$NFT_INCLUDE"
+            fw4_reload
+        fi
+        return 0
+    fi
+
+    if [ ! -d "$NFT_INCLUDE_DIR" ]; then
+        logger_warn "firewall4 chain-post include directory is missing; falling back to direct nft rules"
+        nft_fallback_remove
+        nft_fallback_install
+        return 0
+    fi
+
+    # A stale fallback rule would double-redirect once the include exists.
+    nft_fallback_remove
+
+    _iface="$(lan_iface)"
+    if ! sed -e "s/@IFACE@/$_iface/g" -e "s/@PORT@/$cfg_listen_port/g" \
+        "$NFT_TEMPLATE" > "$NFT_INCLUDE.tmp" 2>/dev/null; then
+        logger_warn "failed to render $NFT_TEMPLATE"
+        rm -f "$NFT_INCLUDE.tmp"
+        return 0
+    fi
+    case "$cfg_listen_address" in
+        *:*)
+            {
+                printf 'iifname "%s" ip6 daddr != ::1 udp dport 53 counter redirect to :%s\n' "$_iface" "$cfg_listen_port"
+                printf 'iifname "%s" ip6 daddr != ::1 tcp dport 53 counter redirect to :%s\n' "$_iface" "$cfg_listen_port"
+            } >> "$NFT_INCLUDE.tmp"
+            ;;
+    esac
+    mv -f "$NFT_INCLUDE.tmp" "$NFT_INCLUDE"
+    chmod 0644 "$NFT_INCLUDE" 2>/dev/null || true
+    fw4_reload
+}
+
+remove_nft() {
+    _changed=0
+    if [ -f "$NFT_INCLUDE" ]; then
+        rm -f "$NFT_INCLUDE"
+        _changed=1
+    fi
+    command -v nft >/dev/null 2>&1 && nft_fallback_remove
+    if [ "$_changed" -eq 1 ]; then
+        fw4_reload
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# cron managed block
+# ---------------------------------------------------------------------------
+
+cron_reload() {
+    [ -x /etc/init.d/cron ] && /etc/init.d/cron reload >/dev/null 2>&1 || true
+}
+
+configure_cron() {
+    [ -d /etc/crontabs ] || return 0
+    _auto=0
+    is_true "$cfg_geo_auto_update" && _auto=1
+    if [ ! -f "$CRON_FILE" ] && [ "$_auto" -eq 0 ]; then
+        return 0
+    fi
+
+    _tmp="$CRON_FILE.rust-dns.$$"
+    if [ -f "$CRON_FILE" ]; then
+        # Never replace the crontab with a partial read: abort on awk failure
+        # instead of writing only the managed block.
+        if ! awk '
+            $0 == "# BEGIN rust-dns" { skip = 1; next }
+            $0 == "# END rust-dns"   { skip = 0; next }
+            !skip { print }
+        ' "$CRON_FILE" > "$_tmp" 2>/dev/null; then
+            rm -f "$_tmp"
+            logger_warn "failed to read $CRON_FILE; leaving cron untouched"
+            return 0
+        fi
+    else
+        : > "$_tmp"
+    fi
+
+    if [ "$_auto" -eq 1 ]; then
+        case "$cfg_geo_update_day_time" in
+            ''|*[!0-9]*) _hour=2 ;;
+            *)
+                _hour=$cfg_geo_update_day_time
+                [ "$_hour" -le 23 ] || _hour=2
+                ;;
+        esac
+        case "$cfg_geo_update_week_time" in
+            '*'|0|1|2|3|4|5|6) _dow=$cfg_geo_update_week_time ;;
+            *) _dow='*' ;;
+        esac
+        {
+            printf '# BEGIN rust-dns\n'
+            printf '0 %s * * %s ucode /usr/share/rust-dns/rust-dns.uc update --all\n' "$_hour" "$_dow"
+            printf '# END rust-dns\n'
+        } >> "$_tmp"
+    fi
+
+    if ! mv -f "$_tmp" "$CRON_FILE"; then
+        rm -f "$_tmp"
+        logger_warn "failed to update $CRON_FILE"
+        return 0
+    fi
+    chmod 0600 "$CRON_FILE" 2>/dev/null || true
+    cron_reload
+}
+
+remove_cron() {
+    [ -f "$CRON_FILE" ] || return 0
+    grep -qs '^# BEGIN rust-dns$' "$CRON_FILE" || return 0
+    _tmp="$CRON_FILE.rust-dns.$$"
+    if ! awk '
+        $0 == "# BEGIN rust-dns" { skip = 1; next }
+        $0 == "# END rust-dns"   { skip = 0; next }
+        !skip { print }
+    ' "$CRON_FILE" > "$_tmp" 2>/dev/null; then
+        rm -f "$_tmp"
+        return 0
+    fi
+    if mv -f "$_tmp" "$CRON_FILE"; then
+        chmod 0600 "$CRON_FILE" 2>/dev/null || true
+        cron_reload
+    else
+        rm -f "$_tmp"
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# procd lifecycle
+# ---------------------------------------------------------------------------
+
+instance_running() {
+    if command -v ubus >/dev/null 2>&1; then
+        if ubus call service list "{\"name\":\"$PKG_NAME\"}" 2>/dev/null |
+            grep -q '"running"[[:space:]]*:[[:space:]]*true'; then
+            return 0
+        fi
+    fi
+    if command -v pgrep >/dev/null 2>&1; then
+        pgrep -f "$RUST_DNS_BIN start" >/dev/null 2>&1 && return 0
+    fi
+    return 1
+}
+
+commit_last_good() {
+    [ -f "$CONFIG_JSON" ] || return 0
+    cp "$CONFIG_JSON" "$LAST_GOOD.tmp" 2>/dev/null || return 0
+    chmod 0644 "$LAST_GOOD.tmp" 2>/dev/null || true
+    mv -f "$LAST_GOOD.tmp" "$LAST_GOOD"
+}
+
+stop_watchdog() {
+    if [ -f "$WATCHDOG_PID" ]; then
+        _wpid="$(cat "$WATCHDOG_PID" 2>/dev/null)"
+        case "$_wpid" in
+            ''|*[!0-9]*) ;;
+            *) kill "$_wpid" 2>/dev/null || true ;;
+        esac
+        rm -f "$WATCHDOG_PID"
+    fi
+}
+
+start_watchdog() {
+    stop_watchdog
+    mkdir -p /var/run 2>/dev/null || true
+    (
+        sleep "$WATCHDOG_DELAY"
+        watchdog_check
+    ) >/dev/null 2>&1 &
+    printf '%s\n' "$!" > "$WATCHDOG_PID"
+}
+
+watchdog_check() {
+    if instance_running; then
+        commit_last_good
+        rm -f "$ROLLBACK_MARKER" "$CONFIG_TMP" "$USE_LAST_GOOD"
+        write_state running
+        return 0
+    fi
+    handle_watchdog_failure
+}
+
+handle_watchdog_failure() {
+    _detail="rust-dns exited within ${WATCHDOG_DELAY}s"
+    if [ -n "$cfg_log_file" ] && [ -r "$cfg_log_file" ]; then
+        _tail="$(tail -n 20 "$cfg_log_file" 2>/dev/null)"
+        [ -n "$_tail" ] && _detail="$_detail
+$_tail"
+    fi
+
+    _hash="$(config_hash)"
+    _tried="$(cat "$ROLLBACK_MARKER" 2>/dev/null)"
+
+    # A second failure of the same configuration must not loop.
+    if [ -n "$_hash" ] && [ "$_hash" = "$_tried" ]; then
+        write_error "watchdog" "second failure for configuration $_hash; rollback suppressed
+$_detail"
+        write_state failed
+        return 1
+    fi
+
+    # If we are already running last-good and it dies, give up instead of
+    # rolling back onto itself.
+    if [ -f "$LAST_GOOD" ] && cmp -s "$CONFIG_JSON" "$LAST_GOOD"; then
+        write_error "watchdog" "last-good configuration failed again; giving up
+$_detail"
+        write_state failed
+        return 1
+    fi
+
+    write_error "watchdog" "$_detail"
+
+    if [ -f "$LAST_GOOD" ]; then
+        [ -n "$_hash" ] && printf '%s\n' "$_hash" > "$ROLLBACK_MARKER"
+        if cp "$LAST_GOOD" "$CONFIG_JSON.tmp" 2>/dev/null &&
+            mv -f "$CONFIG_JSON.tmp" "$CONFIG_JSON"; then
+            write_state rolled-back
+            # The restart must NOT re-render the bad UCI configuration.  The
+            # flag makes start_service install last-good instead of calling
+            # config.sh + check again.
+            printf '1\n' > "$USE_LAST_GOOD"
+            # Drop our pid file first: stop_service must not kill the process
+            # that is about to perform the restart.
+            rm -f "$WATCHDOG_PID"
+            ( sleep 1; /etc/init.d/rust-dns restart ) >/dev/null 2>&1 &
+            return 0
+        fi
+    fi
+
+    write_state failed
+    return 1
+}
+
+apply_integrations() {
+    configure_dnsmasq
+    configure_nft
+    configure_cron
+}
+
+remove_integrations() {
+    remove_dnsmasq
+    remove_nft
+    remove_cron
+}
+
+start_service() {
+    load_config
+    ensure_dirs
+
+    if ! is_true "$cfg_enabled"; then
+        stop_watchdog
+        remove_integrations
+        rm -f "$CONFIG_TMP" "$USE_LAST_GOOD" "$ROLLBACK_MARKER"
+        write_state stopped
+        return 0
+    fi
+
+    if [ -f "$USE_LAST_GOOD" ] && [ -f "$LAST_GOOD" ]; then
+        # Watchdog rollback: run the proven last-good config exactly once
+        # instead of regenerating the configuration that just failed.
+        if ! cp "$LAST_GOOD" "$CONFIG_JSON.tmp" 2>/dev/null ||
+            ! mv -f "$CONFIG_JSON.tmp" "$CONFIG_JSON"; then
+            write_error "rollback" "failed to install $LAST_GOOD"
+            write_state failed
+            return 1
+        fi
+        rm -f "$USE_LAST_GOOD"
+        RENDER_DONE=0
+    elif [ "$RENDER_DONE" != "1" ]; then
+        if ! render_and_check; then
+            return 1
+        fi
+    fi
+    RENDER_DONE=0
+
+    check_mosdns_conflict
+    apply_integrations
+
+    procd_open_instance "$PKG_NAME"
+    procd_set_param command "$RUST_DNS_BIN" start -c "$CONFIG_JSON" -d "$DATADIR"
+    procd_set_param respawn 3600 5 5
+    procd_set_param file "$CONFIG_JSON"
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    procd_close_instance
+
+    write_state starting
+    start_watchdog
+}
+
+stop_service() {
+    stop_watchdog
+    load_config
+    remove_integrations
+    rm -f "$CONFIG_TMP"
+    write_state stopped
+}
+
+reload_service() {
+    load_config
+
+    if ! is_true "$cfg_enabled"; then
+        stop
+        return 0
+    fi
+
+    # Validate before touching the running instance.
+    if ! render_and_check; then
+        logger_warn "reload rejected; keeping the running instance"
+        return 1
+    fi
+
+    # An explicit reload (the user changed UCI) must not keep reusing the
+    # last-good config from an earlier rollback.
+    rm -f "$USE_LAST_GOOD"
+
+    # CONFIG_JSON is validated now; let the restarted instance use it as-is.
+    RENDER_DONE=1
+    stop_watchdog
+    stop
+    start
+}
+
+service_triggers() {
+    procd_add_reload_trigger "$PKG_NAME"
+    procd_add_reload_trigger "firewall"
+}
+
+refresh_firewall() {
+    load_config
+    is_true "$cfg_enabled" || return 0
+    configure_nft
+}
