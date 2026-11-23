@@ -228,7 +228,7 @@ jobs:
       - name: Prepare feed and binary hash
         run: |
           set -eu
-          mkdir -p feed
+          mkdir -p feed sdk-artifacts
           cp -a openwrt/rust-dns feed/rust-dns
           cp -a luci-app-rust-dns feed/luci-app-rust-dns
 
