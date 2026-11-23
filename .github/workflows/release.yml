@@ -242,23 +242,25 @@ jobs:
       - name: Check SDK image
         run: docker manifest inspect "openwrt/sdk:${{ matrix.arch }}" >/dev/null
 
+      - name: Fetch SDK entrypoint
+        run: curl -fsSL "https://raw.githubusercontent.com/openwrt/gh-action-sdk/master/entrypoint.sh" -o entrypoint.sh
+
       - name: Build OpenWrt packages
-        uses: openwrt/gh-action-sdk@main
-        env:
-          # The action defaults to ghcr.io; Docker Hub is verified public and
-          # carries the same release-qualified tags.
-          CONTAINER: openwrt/sdk
-          ARCH: ${{ matrix.arch }}
-          FEED_DIR: ${{ github.workspace }}/feed
-          FEEDNAME: rust-dns
-          PACKAGES: rust-dns luci-app-rust-dns
-          ARTIFACTS_DIR: ${{ github.workspace }}/sdk-artifacts
-          INDEX: "1"
-          BUILD_LOG: "1"
-          # The feed is a plain copy (not a git checkout), so skip the
-          # action's patch-refresh and shfmt git-diff gates.
-          NO_REFRESH_CHECK: "1"
-          NO_SHFMT_CHECK: "1"
+        run: |
+          set -o pipefail
+          docker run --rm \
+            --entrypoint bash \
+            -v "$PWD/feed:/feed" \
+            -v "$PWD/sdk-artifacts:/artifacts" \
+            -v "$PWD/entrypoint.sh:/entrypoint.sh:ro" \
+            -e FEEDNAME=rust-dns \
+            -e PACKAGES="rust-dns luci-app-rust-dns" \
+            -e NO_REFRESH_CHECK=1 \
+            -e NO_SHFMT_CHECK=1 \
+            -e BUILD_LOG=1 \
+            -e INDEX=1 \
+            "openwrt/sdk:${{ matrix.arch }}" \
+            /entrypoint.sh 2>&1 | tee "sdk-build-${{ matrix.label }}-${{ matrix.arch }}.log"
 
       - name: Collect packages
         run: |
@@ -275,15 +277,21 @@ jobs:
           path: out/*
           if-no-files-found: error
 
-      - name: Upload SDK logs on failure
+      - name: Upload SDK build log on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: openwrt-log-${{ matrix.label }}-${{ matrix.arch }}
-          path: |
-            sdk-artifacts/logs
-            logs
+          path: sdk-build-*.log
           if-no-files-found: ignore
+
+      - name: Attach SDK build log to release on failure
+        if: failure() && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
+        continue-on-error: true
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v{0}', github.event.inputs.version) }}
+          files: sdk-build-*.log
 
   release-packages:
     name: Attach OpenWrt packages
