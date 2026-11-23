@@ -280,8 +280,15 @@ jobs:
           mkdir -p out
           for root in bin sdk-artifacts; do
             [ -d "$root" ] || continue
-            find "$root" -type f \( -name '*.ipk' -o -name '*.apk' \) -print -exec sh -c \
-              'cp "$1" "out/${{ matrix.label }}_${{ matrix.arch }}_$(basename "$1")"' _ {} \;
+            find "$root" -type f \( -name '*.ipk' -o -name '*.apk' \) -print |
+              while IFS= read -r file; do
+                base="$(basename "$file")"
+                case "$base" in
+                  rust-dns[_-]*|luci-app-rust-dns[_-]*|luci-i18n-rust-dns[_-]*)
+                    cp "$file" "out/${{ matrix.label }}_${{ matrix.arch }}_${base}"
+                    ;;
+                esac
+              done
           done
           ls -lh out
           if ! find out -type f \( -name '*.ipk' -o -name '*.apk' \) | grep -q .; then
