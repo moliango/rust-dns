@@ -96,8 +96,23 @@ cargo zigbuild --release --target armv7-unknown-linux-musleabihf -p rust-dns
 
 ### 3. OpenWrt packages
 
-Place `openwrt/rust-dns` and `luci-app-rust-dns` under the OpenWrt SDK's `package/`,
-put the release tarball SHA256 into `openwrt/rust-dns/hashes/<arch>.sha256`, then:
+Prebuilt packages are attached to each GitHub release by the CI workflow:
+
+- **23.05.5 / 24.10.8 ipk**: x86_64, aarch64_generic, aarch64_cortex-a53,
+  arm_cortex-a7_neon-vfpv4.
+- **25.12.6 apk**: x86_64.
+
+Download the files matching your OpenWrt release and package architecture, then:
+
+```sh
+opkg install rust-dns_*.ipk luci-app-rust-dns_*.ipk
+# apk-based releases:
+apk add --allow-untrusted rust-dns_*.apk luci-app-rust-dns_*.apk
+```
+
+To build them yourself, place `openwrt/rust-dns` and `luci-app-rust-dns` under the
+OpenWrt SDK's `package/`, put the release tarball SHA256 into
+`openwrt/rust-dns/hashes/<arch>.sha256`, then:
 
 ```sh
 make package/rust-dns/compile V=s
@@ -208,6 +223,9 @@ finish/cancel/error.
 - tag `v*` or manual dispatch: builds static musl binaries for x86_64/aarch64/armv7,
   produces `rust-dns-<version>-<arch>.tar.gz` + `.sha256`, and publishes a GitHub Release
   with `rust-dns-<version>-openwrt-src.tar.gz`.
+- the same workflow builds OpenWrt ipk/apk packages with `openwrt/gh-action-sdk`
+  (23.05.5/24.10.8 ipk for x86_64, aarch64_generic, aarch64_cortex-a53,
+  arm_cortex-a7_neon-vfpv4; 25.12.6 apk for x86_64) and attaches them to the release.
 - Release:
 
 ```sh

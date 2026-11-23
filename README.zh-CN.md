@@ -91,8 +91,23 @@ cargo zigbuild --release --target armv7-unknown-linux-musleabihf -p rust-dns
 
 ### 3. OpenWrt 包
 
-把 `openwrt/rust-dns` 和 `luci-app-rust-dns` 放进 OpenWrt SDK 的 `package/`，
-把 release tarball 的 SHA256 写入 `openwrt/rust-dns/hashes/<arch>.sha256`，然后：
+GitHub Release 会附带 CI 构建好的 OpenWrt 包：
+
+- **23.05.5 / 24.10.8 ipk**：x86_64、aarch64_generic、aarch64_cortex-a53、
+  arm_cortex-a7_neon-vfpv4。
+- **25.12.6 apk**：x86_64。
+
+下载与你的 OpenWrt 版本、包架构匹配的文件，然后：
+
+```sh
+opkg install rust-dns_*.ipk luci-app-rust-dns_*.ipk
+# apk 版本：
+apk add --allow-untrusted rust-dns_*.apk luci-app-rust-dns_*.apk
+```
+
+如需自行构建，把 `openwrt/rust-dns` 和 `luci-app-rust-dns` 放进 OpenWrt SDK 的
+`package/`，把 release tarball 的 SHA256 写入
+`openwrt/rust-dns/hashes/<arch>.sha256`，然后：
 
 ```sh
 make package/rust-dns/compile V=s
@@ -203,6 +218,9 @@ WAN 接口；直连校验失败时 UI 会警告，必要时可显式暂停 OpenC
 - tag `v*` 或手动触发：三架构静态 musl 构建，生成
   `rust-dns-<version>-<arch>.tar.gz` + `.sha256`，上传 GitHub Release；
   同时生成 `rust-dns-<version>-openwrt-src.tar.gz`。
+- 同一 workflow 用 `openwrt/gh-action-sdk` 构建 OpenWrt ipk/apk 并附到 Release：
+  23.05.5/24.10.8 的 x86_64、aarch64_generic、aarch64_cortex-a53、
+  arm_cortex-a7_neon-vfpv4 ipk，以及 25.12.6 x86_64 apk。
 - 发布：
 
 ```sh
