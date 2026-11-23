@@ -104,13 +104,18 @@ Prebuilt packages are attached to each GitHub release by the CI workflow:
   arm_cortex-a7_neon-vfpv4.
 - **25.12.6 apk**: x86_64.
 
-Download the files matching your OpenWrt release and package architecture, then:
+Download the files matching your OpenWrt release and package architecture.
+Release filenames are prefixed with the OpenWrt version and target arch to
+avoid collisions, for example
+`24.10.8_x86_64-24.10.8_rust-dns_0.1.0-r1_x86_64.ipk`. Install them directly:
 
 ```sh
-opkg install rust-dns_*.ipk luci-app-rust-dns_*.ipk
+opkg install *rust-dns_*.ipk *luci-app-rust-dns_*.ipk
 # apk-based releases:
-apk add --allow-untrusted rust-dns_*.apk luci-app-rust-dns_*.apk
+apk add --allow-untrusted *rust-dns-*.apk *luci-app-rust-dns-*.apk
 ```
+
+The `luci-i18n-rust-dns-*` package is optional (Chinese UI translation).
 
 To build them yourself, place `openwrt/rust-dns` and `luci-app-rust-dns` under the
 OpenWrt SDK's `package/`, put the release tarball SHA256 into

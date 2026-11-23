@@ -99,13 +99,17 @@ GitHub Release 会附带 CI 构建好的 OpenWrt 包：
   arm_cortex-a7_neon-vfpv4。
 - **25.12.6 apk**：x86_64。
 
-下载与你的 OpenWrt 版本、包架构匹配的文件，然后：
+下载与你的 OpenWrt 版本、包架构匹配的文件。Release 文件名带 OpenWrt 版本和
+目标架构前缀以避免重名，例如
+`24.10.8_x86_64-24.10.8_rust-dns_0.1.0-r1_x86_64.ipk`。直接安装即可：
 
 ```sh
-opkg install rust-dns_*.ipk luci-app-rust-dns_*.ipk
+opkg install *rust-dns_*.ipk *luci-app-rust-dns_*.ipk
 # apk 版本：
-apk add --allow-untrusted rust-dns_*.apk luci-app-rust-dns_*.apk
+apk add --allow-untrusted *rust-dns-*.apk *luci-app-rust-dns-*.apk
 ```
+
+`luci-i18n-rust-dns-*` 是可选的中文界面翻译包。
 
 如需自行构建，把 `openwrt/rust-dns` 和 `luci-app-rust-dns` 放进 OpenWrt SDK 的
 `package/`，把 release tarball 的 SHA256 写入
