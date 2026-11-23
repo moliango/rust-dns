@@ -265,6 +265,7 @@ jobs:
             -v "$PWD/sdk-artifacts:/artifacts" \
             -v "$PWD/entrypoint.sh:/entrypoint.sh:ro" \
             -e FEEDNAME=rustdns \
+            -e RUST_DNS_ARCH=${{ matrix.bin_arch }} \
             -e PACKAGES="rust-dns luci-app-rust-dns" \
             -e NO_REFRESH_CHECK=1 \
             -e NO_SHFMT_CHECK=1 \

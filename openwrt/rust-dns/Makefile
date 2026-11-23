@@ -26,22 +26,22 @@ RUST_DNS_RELEASE_URL?=https://github.com/$(RUST_DNS_REPO)/releases/download/v$(P
 # x86_64) to the release artifact name.  v1 deliberately does not support
 # MIPS/armv5 because Rust ships no prebuilt musl std for them.
 ifneq ($(filter x86_64%,$(ARCH)),)
-  RUST_DNS_ARCH:=x86_64
+  RUST_DNS_ARCH?=x86_64
 else ifneq ($(filter aarch64%,$(ARCH)),)
-  RUST_DNS_ARCH:=aarch64
+  RUST_DNS_ARCH?=aarch64
 else ifneq ($(filter arm_cortex-a%,$(ARCH)),)
   # OpenWrt armv7 targets are named arm_cortex-a<variant>.
-  RUST_DNS_ARCH:=armv7
+  RUST_DNS_ARCH?=armv7
 else ifneq ($(filter arm_v7%,$(ARCH)),)
-  RUST_DNS_ARCH:=armv7
+  RUST_DNS_ARCH?=armv7
 else ifneq ($(filter arm%,$(ARCH)),)
   # armv5/armv6 targets must not receive the armv7 artifact.
-  RUST_DNS_ARCH:=unsupported
+  RUST_DNS_ARCH?=unsupported
   $(warning rust-dns: '$(ARCH)' is armv5/armv6; v1 only ships armv7 (arm_cortex-a*) binaries)
 else
   # Do not abort feed metadata generation for unrelated targets; the package
   # simply has no artifact for this architecture.
-  RUST_DNS_ARCH:=unsupported
+  RUST_DNS_ARCH?=unsupported
   $(warning rust-dns: unsupported architecture '$(ARCH)'; v1 supports x86_64, aarch64 and armv7 only)
 endif
 
