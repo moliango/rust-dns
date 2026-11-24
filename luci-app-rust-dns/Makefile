@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-rust-dns
-PKG_VERSION:=0.1.2
+PKG_VERSION:=0.1.3
 PKG_RELEASE:=1
 
 LUCI_TITLE:=LuCI Support for rust-dns
@@ -32,6 +32,12 @@ PKG_LICENSE:=GPL-3.0-only
 define Package/$(PKG_NAME)/postinst
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] || {
+	# rpcd ignores world-writable ucode scripts, so an installer that
+	# preserves odd modes (cp -pR from a 0777 feed) would silently disable
+	# the whole luci.rust_dns object.  Normalize the files it loads.
+	chmod 0644 /usr/share/rpcd/ucode/luci.rust_dns 2>/dev/null
+	chmod 0644 /usr/share/rpcd/acl.d/luci-app-rust-dns.json 2>/dev/null
+	chmod 0644 /usr/share/luci/menu.d/luci-app-rust-dns.json 2>/dev/null
 	rm -f /tmp/luci-indexcache.*
 	rm -rf /tmp/luci-modulecache/
 	[ -x /etc/init.d/rpcd ] && /etc/init.d/rpcd restart >/dev/null 2>&1

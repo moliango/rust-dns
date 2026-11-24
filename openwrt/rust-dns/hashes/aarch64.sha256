@@ -1,3 +1,5 @@
-# rust-dns 0.1.2 aarch64 release artifact SHA256.
-# Generated from rust-dns-0.1.2-aarch64.tar.gz.
-4f0466fcbce44ca79886ef3c486551fc305435ddeece1094dfee659abc42aec2
+# rust-dns 0.1.3 aarch64 release artifact SHA256.
+# Generated from rust-dns-0.1.3-aarch64.tar.gz; the release CI writes the real
+# digest into its feed copy.  Replace the placeholder before building the
+# package locally from this source tree.
+0000000000000000000000000000000000000000000000000000000000000000

@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version without the leading v (e.g. 0.1.2)"
+        description: "Release version without the leading v (e.g. 0.1.3)"
         required: false
-        default: "0.1.2"
+        default: "0.1.3"
 
 permissions:
   contents: write
@@ -204,7 +204,7 @@ jobs:
           fi
           tar -czf "rust-dns-${VERSION}-openwrt-src.tar.gz" \
             openwrt/rust-dns openwrt/geo2txt luci-app-rust-dns \
-            docs/RELEASE-NOTES-0.1.1.md docs/RELEASE-NOTES-0.1.2.md README.md README.zh-CN.md LICENSE
+            docs/RELEASE-NOTES-0.1.1.md docs/RELEASE-NOTES-0.1.2.md docs/RELEASE-NOTES-0.1.3.md README.md README.zh-CN.md LICENSE
           (cd artifacts && sha256sum *.tar.gz > SHA256SUMS)
           cat artifacts/SHA256SUMS
 
@@ -215,7 +215,7 @@ jobs:
           generate_release_notes: true
           body: |
             OpenWrt packages are published with a `SHA256SUMS-packages` manifest used by the
-            LuCI upgrade backend. The 0.1.1 and 0.1.2 release notes are in
+            LuCI upgrade backend. The 0.1.1–0.1.3 release notes are in
             `docs/RELEASE-NOTES-*.md` and in the source bundle.
           files: |
             artifacts/*.tar.gz
@@ -279,10 +279,12 @@ jobs:
       - name: Build OpenWrt packages
         run: |
           set -o pipefail
-          # The manual container runs without the action's chown step; make
-          # the bind mounts writable by the SDK user so it can move bin/ and
-          # logs/ into /artifacts at the end.
-          chmod -R a+rwX feed sdk-artifacts
+          # Only the artifact directory must be writable by the SDK user (it
+          # moves bin/ and logs/ there at the end).  Never chmod the feed:
+          # luci.mk copies root/ and htdocs/ with `cp -pR`, so world-writable
+          # feed files end up as 0777 in the package, and rpcd deliberately
+          # ignores world-writable ucode scripts.
+          chmod -R a+rwX sdk-artifacts
           docker run --rm \
             --entrypoint bash \
             -v "$PWD/feed:/feed" \
@@ -318,6 +320,31 @@ jobs:
           if ! find out -type f \( -name '*.ipk' -o -name '*.apk' \) | grep -q .; then
             echo "no OpenWrt packages were collected"
             exit 1
+          fi
+
+      # rpcd skips ucode scripts with the world-writable bit set, which would
+      # silently disable the whole luci.rust_dns RPC object.  Catch that in CI
+      # instead of on a router.
+      - name: Check LuCI ucode file modes
+        run: |
+          set -eu
+          found=0
+          for pkg in out/*luci-app-rust-dns*.ipk; do
+            [ -f "$pkg" ] || continue
+            found=1
+            tmp="$(mktemp -d)"
+            tar -xzf "$pkg" -C "$tmp"
+            tar -xzf "$tmp/data.tar.gz" -C "$tmp" ./usr/share/rpcd/ucode/luci.rust_dns
+            perm="$(stat -c '%a' "$tmp/usr/share/rpcd/ucode/luci.rust_dns")"
+            echo "$pkg: luci.rust_dns mode $perm"
+            if [ "$((0$perm & 002))" -ne 0 ]; then
+              echo "ERROR: luci.rust_dns is world-writable ($perm); rpcd will ignore it" >&2
+              exit 1
+            fi
+            rm -rf "$tmp"
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "no ipk in this build (apk target); ucode mode check skipped"
           fi
 
       - name: Upload OpenWrt packages
