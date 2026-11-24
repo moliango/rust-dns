@@ -1404,7 +1404,9 @@ function sanitize_cf_url(value) {
 		return { error: 'download URL is empty' };
 	if (length(s) > 2048)
 		return { error: 'download URL is too long' };
-	if (match(s, /[\s"']/))
+	// ucode treats \s inside a character class as a literal 's', so use the
+	// explicit whitespace class here.
+	if (match(s, /[ \t\r\n\f\v"']/))
 		return { error: 'download URL contains whitespace or quotes' };
 	if (!match(s, /^https:\/\//))
 		return { error: 'download URL must use https://' };
@@ -1882,7 +1884,7 @@ function normalize_list_input(value) {
 				push(out, trim_value(value[i]));
 	}
 	else if (type(value) == 'string') {
-		let parts = split(value, /[\s,]+/);
+		let parts = split(value, /[ \t\r\n\f\v,]+/);
 
 		for (let i = 0; i < length(parts); i++) {
 			let item = trim_value(parts[i]);
