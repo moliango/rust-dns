@@ -334,11 +334,16 @@ function download(url, dest) {
 	return rc == 0 && file_size(dest) > 0;
 }
 
-// All v2dat_dump invocation details live here so tests can substitute a fake
-// binary on PATH.
-function v2dat_dump(datfile, tag, outfile) {
+// Unpack one tag with geo2txt (the tool shipped by the geo2txt package):
+//   geo2txt geosite -f geosite.dat -e cn -o <outdir>
+// It writes <outdir>/geosite_<tag>.txt (or geoip_<tag>.txt).
+function dump_tag(kind, datfile, tag, outdir) {
+	let outfile = sprintf('%s/%s_%s.txt', outdir, kind, tag);
+
 	run('rm -f ' + shq(outfile));
-	let rc = run('v2dat_dump ' + shq(datfile) + ' ' + shq(tag) + ' > ' + shq(outfile) + ' 2>/dev/null');
+	let rc = run('geo2txt ' + shq(kind) + ' -f ' + shq(datfile) +
+		' -e ' + shq(tag) + ' -o ' + shq(outdir) + ' 2>/dev/null');
+
 	return rc == 0 && file_size(outfile) > 0;
 }
 
@@ -369,6 +374,11 @@ function build_geodata(staging, kind) {
 		return false;
 	}
 
+	if (run('command -v geo2txt >/dev/null 2>&1') != 0) {
+		log(kind + ': geo2txt not found; install the geo2txt package');
+		return false;
+	}
+
 	let tags = opt_list(kind == 'geosite' ? 'geosite_tags' : 'geoip_tags');
 	if (length(tags) == 0)
 		push(tags, 'cn');
@@ -378,17 +388,16 @@ function build_geodata(staging, kind) {
 		let tag = safe_tag(tags[i]);
 		if (tag == null)
 			continue;
-		let out = sprintf('%s/%s_%s.txt', staging, kind, tag);
-		if (v2dat_dump(dat, tag, out))
+		if (dump_tag(kind, dat, tag, staging))
 			produced = true;
 		else
-			log(sprintf('%s: v2dat_dump failed for tag %s', kind, tag));
+			log(sprintf('%s: geo2txt failed for tag %s', kind, tag));
 	}
 
 	// The generated config references the fixed *_cn.txt paths; make sure they
 	// exist even when the user only selected custom tags.
 	let cn = sprintf('%s/%s_cn.txt', staging, kind);
-	if (!file_exists(cn) && v2dat_dump(dat, 'cn', cn))
+	if (!file_exists(cn) && dump_tag(kind, dat, 'cn', staging))
 		produced = true;
 
 	return produced;
