@@ -334,7 +334,10 @@ jobs:
             found=1
             tmp="$(mktemp -d)"
             tar -xzf "$pkg" -C "$tmp"
-            tar -xzf "$tmp/data.tar.gz" -C "$tmp" ./usr/share/rpcd/ucode/luci.rust_dns
+            # -p is essential: without it GNU tar applies the umask while
+            # extracting, which strips the world-writable bit and hides
+            # exactly the mode this step exists to catch.
+            tar -xpzf "$tmp/data.tar.gz" -C "$tmp" ./usr/share/rpcd/ucode/luci.rust_dns
             perm="$(stat -c '%a' "$tmp/usr/share/rpcd/ucode/luci.rust_dns")"
             echo "$pkg: luci.rust_dns mode $perm"
             if [ "$((0$perm & 002))" -ne 0 ]; then
