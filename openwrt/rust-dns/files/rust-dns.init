@@ -95,6 +95,11 @@ ensure_dirs() {
             [ -n "$_logdir" ] && mkdir -p "$_logdir" 2>/dev/null || true
             ;;
     esac
+
+    # The Logs page reads this file; procd's stdout/stderr normally go to
+    # syslog only. Create it here so the path is always accessible.
+    [ -n "$cfg_log_file" ] && : >> "$cfg_log_file" 2>/dev/null
+    [ -n "$cfg_log_file" ] && chmod 0644 "$cfg_log_file" 2>/dev/null || true
 }
 
 write_state() {
@@ -642,8 +647,21 @@ start_service() {
     check_mosdns_conflict
     apply_integrations
 
+    # Only the dedicated rust-dns log path is accepted, so a tampered UCI
+    # value cannot redirect daemon output to an arbitrary file.
+    [ -n "$cfg_log_file" ] || cfg_log_file=/var/log/rust-dns.log
+    case "$cfg_log_file" in
+        /var/log/rust-dns*) ;;
+        *) cfg_log_file=/var/log/rust-dns.log ;;
+    esac
+    : >> "$cfg_log_file" 2>/dev/null || true
+    chmod 0644 "$cfg_log_file" 2>/dev/null || true
+
     procd_open_instance "$PKG_NAME"
-    procd_set_param command "$RUST_DNS_BIN" start -c "$CONFIG_JSON" -d "$DATADIR"
+    # Redirect the daemon's stdout/stderr into the file the Logs page reads.
+    # `exec` keeps the same PID so procd respawn still tracks the daemon.
+    procd_set_param command /bin/sh -c \
+        "exec \"$RUST_DNS_BIN\" start -c \"$CONFIG_JSON\" -d \"$DATADIR\" >> \"$cfg_log_file\" 2>&1"
     procd_set_param respawn 3600 5 5
     procd_set_param file "$CONFIG_JSON"
     procd_set_param stdout 1
