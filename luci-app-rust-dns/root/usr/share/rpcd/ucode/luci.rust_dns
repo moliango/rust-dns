@@ -999,7 +999,7 @@ function write_file_atomic(path, content) {
 	let f = open(tmp, 'w');
 
 	if (!f)
-		throw 'cannot open ' + tmp + ' for writing';
+		die('cannot open ' + tmp + ' for writing');
 
 	f.write(content);
 	f.close();
@@ -1009,7 +1009,7 @@ function write_file_atomic(path, content) {
 	} catch (e) {}
 
 	if (!rename(tmp, path))
-		throw 'cannot atomically replace ' + path;
+		die('cannot atomically replace ' + path);
 }
 
 function ensure_rule_dir() {
@@ -1027,7 +1027,7 @@ function copy_rule_files(plan) {
 	let results = [];
 
 	if (!ensure_rule_dir())
-		throw 'cannot create ' + RUST_DNS_RULE_DIR;
+		die('cannot create ' + RUST_DNS_RULE_DIR);
 
 	for (let i = 0; i < length(plan.rules); i++) {
 		let rule = plan.rules[i];
@@ -1036,7 +1036,7 @@ function copy_rule_files(plan) {
 			let content = readfile(rule.source);
 
 			if (type(content) != 'string')
-				throw 'unreadable source file';
+				die('unreadable source file');
 
 			let target = RUST_DNS_RULE_DIR + '/' + rule.name;
 			let info = stat_safe(target);
@@ -1951,7 +1951,7 @@ function prepare_host_entries(domains_value, ips_value) {
 
 function write_hosts_block(entries) {
 	if (!ensure_dir('/etc/rust-dns') || !ensure_dir(RUST_DNS_RULE_DIR))
-		throw 'cannot create ' + RUST_DNS_RULE_DIR;
+		die('cannot create ' + RUST_DNS_RULE_DIR);
 
 	let existed = stat_safe(CF_HOSTS_FILE) != null;
 	let original = '';
@@ -1960,7 +1960,7 @@ function write_hosts_block(entries) {
 		original = readfile(CF_HOSTS_FILE);
 
 		if (type(original) != 'string')
-			throw 'cannot read ' + CF_HOSTS_FILE;
+			die('cannot read ' + CF_HOSTS_FILE);
 	}
 
 	let merged = merge_managed_hosts(original, entries);
