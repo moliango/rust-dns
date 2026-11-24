@@ -1,16 +1,21 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-rust-dns
-PKG_VERSION:=0.1.1
+PKG_VERSION:=0.1.2
 PKG_RELEASE:=1
 
 LUCI_TITLE:=LuCI Support for rust-dns
 LUCI_DESCRIPTION:=LuCI configuration, rules, statistics and log pages for rust-dns
 LUCI_PKGARCH:=all
-# The rpcd ucode backend imports the ucode `fs` and `uci` modules and is run
-# by rpcd's ucode plugin, so depend on them explicitly instead of relying on
-# luci-base to pull them in transitively.
-LUCI_DEPENDS:=+rust-dns +ucode +ucode-mod-fs +ucode-mod-uci +rpcd-mod-ucode +uclient-fetch
+# luci-base provides the JS framework (baseclass/form/rpc); the rpcd ucode
+# backend imports the ucode `fs` and `uci` modules and is run by rpcd's ucode
+# plugin, so depend on them explicitly instead of relying on transitive pulls.
+LUCI_DEPENDS:=+luci-base +rust-dns +ucode +ucode-mod-fs +ucode-mod-uci +rpcd-mod-ucode +uclient-fetch
+
+# LuCI's jsmin step leaves a stray <file>.js.o behind when it cannot minify an
+# already minified file (js-yaml).  Turn the step off so the package only
+# contains the files from htdocs.
+LUCI_MINIFY_JS:=0
 
 PKG_MAINTAINER:=rust-dns contributors
 PKG_LICENSE:=GPL-3.0-only
@@ -21,6 +26,9 @@ PKG_LICENSE:=GPL-3.0-only
 # rpcd loads ucode handlers only at startup/reload, so an install or upgrade
 # must restart it (and uhttpd for the menu/rpc cache) or the rust-dns RPC
 # object is missing until the next reboot.
+#
+# Keep the plain `postinst` variable name: package-pack.mk/BuildIPKGVariable
+# reads it and writes CONTROL/postinst-pkg, which default_postinst() sources.
 define Package/$(PKG_NAME)/postinst
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] || {

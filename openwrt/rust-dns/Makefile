@@ -12,7 +12,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=rust-dns
-PKG_VERSION:=0.1.1
+PKG_VERSION:=0.1.2
 PKG_RELEASE:=1
 
 PKG_MAINTAINER:=rust-dns contributors
@@ -134,6 +134,9 @@ define Package/rust-dns/install
 	$(INSTALL_BIN) ./files/uci-defaults/90-rust-dns $(1)/etc/uci-defaults/90-rust-dns
 endef
 
+# Keep the plain postinst/prerm variable names: the OpenWrt build system
+# reads them and writes CONTROL/postinst-pkg / CONTROL/prerm-pkg, which
+# default_postinst() / default_prerm() source on 23.05+.
 define Package/rust-dns/postinst
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] || {

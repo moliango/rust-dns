@@ -43,19 +43,20 @@ Fixed runtime paths:
 ## Release artifacts
 
 CI builds the Rust 1.100.0 toolchain with MSRV 1.88 and publishes, for each
-target, a tarball whose single top-level file is `rust-dns`:
+target, a tarball with one top-level directory `rust-dns-<version>-<arch>/`
+containing `rust-dns`:
 
 ```
-rust-dns-0.1.1-x86_64.tar.gz
-rust-dns-0.1.1-aarch64.tar.gz
-rust-dns-0.1.1-armv7.tar.gz
+rust-dns-0.1.2-x86_64.tar.gz
+rust-dns-0.1.2-aarch64.tar.gz
+rust-dns-0.1.2-armv7.tar.gz
 ```
 
 The Makefile maps OpenWrt `ARCH` to `x86_64`, `aarch64` or `armv7`, reads
 `hashes/<arch>.sha256` as `PKG_HASH`, and refuses other architectures (v1 does
 not support MIPS/armv5).  The placeholder hashes in `hashes/` must be replaced
 by CI before a real build.  The release repository defaults to
-`rust-dns/rust-dns`; override it with `RUST_DNS_REPO=owner/repo`.
+`moliango/rust-dns`; override it with `RUST_DNS_REPO=owner/repo`.
 
 ## Build (OpenWrt SDK / buildroot)
 
@@ -69,10 +70,10 @@ The same Makefile and conffiles definition are used by both backends:
 
 ```sh
 # opkg (23.05, 24.10)
-opkg install rust-dns_0.1.1-*.ipk
+opkg install rust-dns_0.1.2-*.ipk
 
 # apk (25.12/main)
-apk add --allow-untrusted rust-dns-0.1.1-*.apk
+apk add --allow-untrusted rust-dns-0.1.2-*.apk
 ```
 
 The package does **not** enable the service automatically.  After installing:
@@ -179,6 +180,12 @@ are copied directly (used by offline fixtures); `https://` sources go through
 (`sha256`, `count`, `bytes` for the primary `*_cn.txt` / `adlist.txt`) plus a
 `files` map with every generated file.  Each run appends
 `UPDATE_EXITED <code>` to `/var/rust-dns/update.log`.
+
+`ucode /usr/share/rust-dns/rust-dns.uc upgrade --check` prints the latest
+GitHub release state as JSON and `upgrade` downloads the matching ipk/apk set,
+verifies it against `SHA256SUMS-packages`, installs it and appends
+`UPGRADE_EXITED <code>` to `/var/rust-dns/upgrade.log`.  The LuCI System
+Upgrade page drives the same commands.
 
 ## Validation notes
 

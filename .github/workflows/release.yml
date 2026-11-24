@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version without the leading v (e.g. 0.1.1)"
+        description: "Release version without the leading v (e.g. 0.1.2)"
         required: false
-        default: "0.1.1"
+        default: "0.1.2"
 
 permissions:
   contents: write
@@ -204,7 +204,7 @@ jobs:
           fi
           tar -czf "rust-dns-${VERSION}-openwrt-src.tar.gz" \
             openwrt/rust-dns openwrt/geo2txt luci-app-rust-dns \
-            docs/RELEASE-NOTES-0.1.1.md README.md README.zh-CN.md LICENSE
+            docs/RELEASE-NOTES-0.1.1.md docs/RELEASE-NOTES-0.1.2.md README.md README.zh-CN.md LICENSE
           (cd artifacts && sha256sum *.tar.gz > SHA256SUMS)
           cat artifacts/SHA256SUMS
 
@@ -215,8 +215,8 @@ jobs:
           generate_release_notes: true
           body: |
             OpenWrt packages are published with a `SHA256SUMS-packages` manifest used by the
-            LuCI upgrade backend. The 0.1.1 release notes are in
-            `docs/RELEASE-NOTES-0.1.1.md` and in the source bundle.
+            LuCI upgrade backend. The 0.1.1 and 0.1.2 release notes are in
+            `docs/RELEASE-NOTES-*.md` and in the source bundle.
           files: |
             artifacts/*.tar.gz
             artifacts/*.sha256

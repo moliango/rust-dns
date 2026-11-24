@@ -10,7 +10,7 @@ built for OpenWrt: plugin-style configuration, a seven-page LuCI UI, a local sta
 Cloudflare IP optimizer.
 
 > **Status:** the DNS core MVP and the management stack are implemented and tested: UDP/TCP
-> listeners, `sequence` subset, UDP/TCP/DoT upstreams, TTL cache, stats events, six LuCI pages,
+> listeners, `sequence` subset, UDP/TCP/DoT upstreams, TTL cache, stats events, seven LuCI pages,
 > the OpenWrt service package and the Cloudflare optimizer.
 > DoT/DoH/DoQ servers, DoH upstreams, IP_PKTINFO, multi-worker listeners, ECS/dual-stack
 > preference and full geoip semantics are future work.
@@ -22,8 +22,8 @@ Cloudflare IP optimizer.
   - `sequence` subset: domain/IP matchers, hosts, redirect, allow/block/grey lists, reject,
     cache, response modifiers.
   - TTL cache (age-adjusted hits, lazy TTL, flush); query events feed `/api/v1`.
-- **LuCI (6 pages)**
-  - Basic, Rules, Geodata Update, Statistics, Logs, Cloudflare IP Optimizer.
+- **LuCI (7 pages)**
+  - Basic, Rules, Geodata Update, Statistics, Logs, Cloudflare IP Optimizer, System Upgrade.
   - One-click MosDNS import, CodeMirror YAML editor, add/remove individual rule entries.
 - **Local stats/admin API**
   - `/api/v1/{health,version,stats,history,top,logs,logs/clear,cache/flush}`; loopback only.
@@ -46,7 +46,7 @@ rust-dns/                     Rust workspace (Rust 1.100.0, MSRV 1.88)
 ├── crates/rust-dns-stats-api/    /api/v1 collector + HTTP API
 └── crates/rust-dns-cf-optimizer/ Cloudflare probes, bypass, hosts merge
 openwrt/rust-dns/             OpenWrt service package (init, UCI, config.sh, updater, rules)
-luci-app-rust-dns/            LuCI frontend (6 pages, rpcd, ACL, po, CodeMirror)
+luci-app-rust-dns/            LuCI frontend (7 pages, rpcd, ACL, po, CodeMirror)
 dev/                          mock API and local stubs (not installed)
 dist/                         local release artifacts (not committed)
 ```
@@ -118,7 +118,7 @@ Each release ships four packages:
 Download the files matching your OpenWrt release and package architecture.
 Release filenames are prefixed with the OpenWrt version and target arch to
 avoid collisions, for example
-`24.10.8_x86_64-24.10.8_rust-dns_0.1.1-r1_x86_64.ipk`. Install **geo2txt
+`24.10.8_x86_64-24.10.8_rust-dns_0.1.2-r1_x86_64.ipk`. Install **geo2txt
 first**, then the service package, then LuCI:
 
 ```sh
@@ -203,6 +203,7 @@ A `sequence` is an array of rule strings:
 | Statistics | QPS, hit rate, top domains/clients, query log |
 | Logs | Tail, level/keyword filter, clear |
 | Cloudflare Optimizer | Probes, OpenClash bypass, results, write hosts |
+| System Upgrade | Check GitHub Releases, verify SHA256, install ipk/apk, view log |
 
 The LuCI package contains UI/rpcd only. `/etc/config/rust-dns`, rules, init and
 `config.sh` are owned by the `rust-dns` service package.
@@ -263,8 +264,8 @@ finish/cancel/error.
 - Release:
 
 ```sh
-git tag v0.1.1
-git push origin v0.1.1
+git tag v0.1.2
+git push origin v0.1.2
 ```
 
 After publishing, copy the release SHA256 back into
