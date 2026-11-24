@@ -46,9 +46,9 @@ CI builds the Rust 1.100.0 toolchain with MSRV 1.88 and publishes, for each
 target, a tarball whose single top-level file is `rust-dns`:
 
 ```
-rust-dns-0.1.0-x86_64.tar.gz
-rust-dns-0.1.0-aarch64.tar.gz
-rust-dns-0.1.0-armv7.tar.gz
+rust-dns-0.1.1-x86_64.tar.gz
+rust-dns-0.1.1-aarch64.tar.gz
+rust-dns-0.1.1-armv7.tar.gz
 ```
 
 The Makefile maps OpenWrt `ARCH` to `x86_64`, `aarch64` or `armv7`, reads
@@ -69,10 +69,10 @@ The same Makefile and conffiles definition are used by both backends:
 
 ```sh
 # opkg (23.05, 24.10)
-opkg install rust-dns_0.1.0-*.ipk
+opkg install rust-dns_0.1.1-*.ipk
 
 # apk (25.12/main)
-apk add --allow-untrusted rust-dns-0.1.0-*.apk
+apk add --allow-untrusted rust-dns-0.1.1-*.apk
 ```
 
 The package does **not** enable the service automatically.  After installing:

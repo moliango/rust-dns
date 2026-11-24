@@ -12,8 +12,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=rust-dns
-PKG_VERSION:=0.1.0
-PKG_RELEASE:=4
+PKG_VERSION:=0.1.1
+PKG_RELEASE:=1
 
 PKG_MAINTAINER:=rust-dns contributors
 PKG_LICENSE:=GPL-3.0-only
@@ -69,7 +69,7 @@ define Package/rust-dns
   SUBMENU:=DNS
   TITLE:=A fast DNS forwarder with local/remote split and stats API
   URL:=https://github.com/$(RUST_DNS_REPO)
-  DEPENDS:=+ucode +ucode-mod-fs +ucode-mod-uci +uclient-fetch +ca-bundle
+  DEPENDS:=+ucode +ucode-mod-fs +ucode-mod-uci +uclient-fetch +ca-bundle +geo2txt
   # Deliberately no CONFLICTS with mosdns: different package, UCI name and
   # path.  Port conflicts are reported at runtime by /etc/init.d/rust-dns.
 endef
@@ -142,6 +142,11 @@ define Package/rust-dns/postinst
 	chmod 0644 /etc/rust-dns/config_custom.yaml /etc/rust-dns/rule/*.txt 2>/dev/null
 	chmod 0755 /etc/init.d/rust-dns /usr/share/rust-dns/config.sh \
 		/usr/share/rust-dns/rust-dns.uc /etc/hotplug.d/iface/95-rust-dns 2>/dev/null
+	# An upgrade replaces the running binary, so restart an already enabled
+	# service.  Do not enable or start the service on first install.
+	if [ -x /etc/init.d/rust-dns ] && /etc/init.d/rust-dns enabled; then
+		/etc/init.d/rust-dns restart >/dev/null 2>&1
+	fi
 }
 # Do not enable or start the service automatically; the user decides.
 exit 0

@@ -6,7 +6,7 @@
 **English** | [简体中文](README.zh-CN.md)
 
 A Rust rewrite of the [mosdns](https://github.com/IrineSistiana/mosdns)-style DNS forwarder,
-built for OpenWrt: plugin-style configuration, a six-page LuCI UI, a local stats API, and a
+built for OpenWrt: plugin-style configuration, a seven-page LuCI UI, a local stats API, and a
 Cloudflare IP optimizer.
 
 > **Status:** the DNS core MVP and the management stack are implemented and tested: UDP/TCP
@@ -32,7 +32,8 @@ Cloudflare IP optimizer.
     direct-egress verification.
   - Apply selected IPs to a managed `hosts.txt` block (atomic write, `.bak`, reload).
 - **OpenWrt packaging**
-  - `rust-dns` service package + `luci-app-rust-dns` frontend package.
+  - `rust-dns` service package + `luci-app-rust-dns` frontend package, plus a
+    bundled `geo2txt` helper for geodata updates.
   - Targets: OpenWrt 23.05+ (opkg), 24.10 (opkg), 25.12/main (apk).
   - Architectures: x86_64, aarch64, armv7 (no MIPS/armv5 in v1).
 
@@ -107,24 +108,45 @@ Prebuilt packages are attached to each GitHub release by the CI workflow:
   arm_cortex-a7_neon-vfpv4.
 - **25.12.6 apk**: x86_64.
 
+Each release ships four packages:
+
+- `geo2txt` — geosite/geoip `.dat` unpacker used by the geodata updater.
+- `rust-dns` — service/daemon package.
+- `luci-app-rust-dns` — LuCI frontend.
+- `luci-i18n-rust-dns-*` — optional Chinese UI translation.
+
 Download the files matching your OpenWrt release and package architecture.
 Release filenames are prefixed with the OpenWrt version and target arch to
 avoid collisions, for example
-`24.10.8_x86_64-24.10.8_rust-dns_0.1.0-r1_x86_64.ipk`. Install them directly:
+`24.10.8_x86_64-24.10.8_rust-dns_0.1.1-r1_x86_64.ipk`. Install **geo2txt
+first**, then the service package, then LuCI:
 
 ```sh
-opkg install *rust-dns_*.ipk *luci-app-rust-dns_*.ipk
+opkg install ./24.10.8_*_geo2txt_*.ipk
+opkg install ./24.10.8_*_rust-dns_*.ipk
+opkg install ./24.10.8_*_luci-app-rust-dns_*.ipk
 # apk-based releases:
-apk add --allow-untrusted *rust-dns-*.apk *luci-app-rust-dns-*.apk
+apk add --allow-untrusted ./25.12.6_*_geo2txt-*.apk
+apk add --allow-untrusted ./25.12.6_*_rust-dns-*.apk
+apk add --allow-untrusted ./25.12.6_*_luci-app-rust-dns-*.apk
 ```
+
+Installing `geo2txt` first lets the local `rust-dns` package resolve it as a
+dependency (`opkg`/`apk` do not resolve dependencies from local files).
+
+Upgrades can also be run from LuCI: **Services → Rust DNS → System Upgrade** checks the
+fixed `moliango/rust-dns` GitHub repository, selects only packages matching the
+router's OpenWrt branch and target architecture, and verifies every download
+against the release's `SHA256SUMS-packages` asset.
 
 The `luci-i18n-rust-dns-*` package is optional (Chinese UI translation).
 
-To build them yourself, place `openwrt/rust-dns` and `luci-app-rust-dns` under the
-OpenWrt SDK's `package/`, put the release tarball SHA256 into
-`openwrt/rust-dns/hashes/<arch>.sha256`, then:
+To build them yourself, place `openwrt/rust-dns`, `openwrt/geo2txt` and
+`luci-app-rust-dns` under the OpenWrt SDK's `package/`, put the release tarball
+SHA256 into `openwrt/rust-dns/hashes/<arch>.sha256`, then:
 
 ```sh
+make package/geo2txt/compile V=s
 make package/rust-dns/compile V=s
 make package/luci-app-rust-dns/compile V=s
 ```
@@ -233,14 +255,16 @@ finish/cancel/error.
 - tag `v*` or manual dispatch: builds static musl binaries for x86_64/aarch64/armv7,
   produces `rust-dns-<version>-<arch>.tar.gz` + `.sha256`, and publishes a GitHub Release
   with `rust-dns-<version>-openwrt-src.tar.gz`.
-- the same workflow builds OpenWrt ipk/apk packages with `openwrt/gh-action-sdk`
+- the same workflow builds OpenWrt ipk/apk packages with the OpenWrt SDK container
   (23.05.5/24.10.8 ipk for x86_64, aarch64_generic, aarch64_cortex-a53,
-  arm_cortex-a7_neon-vfpv4; 25.12.6 apk for x86_64) and attaches them to the release.
+  arm_cortex-a7_neon-vfpv4; 25.12.6 apk for x86_64; plus the `geo2txt` helper)
+  and attaches them to the release together with a `SHA256SUMS-packages`
+  manifest used by the LuCI upgrade backend.
 - Release:
 
 ```sh
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1
+git push origin v0.1.1
 ```
 
 After publishing, copy the release SHA256 back into

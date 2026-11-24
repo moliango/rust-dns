@@ -1492,3 +1492,123 @@ msgstr ""
 
 msgid "Some selected IPs did not pass the thresholds and will be ignored."
 msgstr ""
+
+msgid "Already up to date"
+msgstr ""
+
+msgid "Already up to date."
+msgstr ""
+
+msgid "Architecture"
+msgstr ""
+
+msgid "Check for a newer rust-dns release on GitHub. Only packages matching this router's OpenWrt branch and architecture are offered, and every package is verified against SHA256SUMS-packages before installation."
+msgstr ""
+
+msgid "Check for updates"
+msgstr ""
+
+msgid "Checking for updates..."
+msgstr ""
+
+msgid "Failed to check for updates."
+msgstr ""
+
+msgid "Failed to check for updates: %s"
+msgstr ""
+
+msgid "Failed to read upgrade status: %s"
+msgstr ""
+
+msgid "Failed to start the upgrade."
+msgstr ""
+
+msgid "Failed to start the upgrade: %s"
+msgstr ""
+
+msgid "Installed version"
+msgstr ""
+
+msgid "Latest version"
+msgstr ""
+
+msgid "LuCI may reload because rpcd or uhttpd is restarted after the upgrade."
+msgstr ""
+
+msgid "No upgrade log available."
+msgstr ""
+
+msgid "Not checked yet"
+msgstr ""
+
+msgid "OpenWrt version"
+msgstr ""
+
+msgid "Package manager"
+msgstr ""
+
+msgid "Packages"
+msgstr ""
+
+msgid "Starting upgrade..."
+msgstr ""
+
+msgid "System Upgrade"
+msgstr ""
+
+msgid "The router will download and install the latest rust-dns packages from GitHub, then restart the service. Do not power off the router during this process."
+msgstr ""
+
+msgid "Unknown"
+msgstr ""
+
+msgid "Update available"
+msgstr ""
+
+msgid "Update available."
+msgstr ""
+
+msgid "Update status"
+msgstr ""
+
+msgid "Upgrade"
+msgstr ""
+
+msgid "Upgrade API is unavailable."
+msgstr ""
+
+msgid "Upgrade check API is unavailable."
+msgstr ""
+
+msgid "Upgrade completed successfully. LuCI may reload because rpcd/uhttpd was restarted."
+msgstr ""
+
+msgid "Upgrade failed (exit code %d)."
+msgstr ""
+
+msgid "Upgrade failed."
+msgstr ""
+
+msgid "Upgrade is running..."
+msgstr ""
+
+msgid "Upgrade is still running. Check the log for progress."
+msgstr ""
+
+msgid "Upgrade log"
+msgstr ""
+
+msgid "Upgrade now"
+msgstr ""
+
+msgid "Upgrade rust-dns?"
+msgstr ""
+
+msgid "Upgrade status API is unavailable."
+msgstr ""
+
+msgid "Upgrade status is unavailable. Waiting for rpcd to come back..."
+msgstr ""
+
+msgid "Upgrade stopped without reporting an exit code. Check the log."
+msgstr ""

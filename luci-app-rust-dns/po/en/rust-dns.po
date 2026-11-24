@@ -1502,3 +1502,123 @@ msgstr "Only results that passed the thresholds can be written."
 
 msgid "Some selected IPs did not pass the thresholds and will be ignored."
 msgstr "Some selected IPs did not pass the thresholds and will be ignored."
+
+msgid "Already up to date"
+msgstr "Already up to date"
+
+msgid "Already up to date."
+msgstr "Already up to date."
+
+msgid "Architecture"
+msgstr "Architecture"
+
+msgid "Check for a newer rust-dns release on GitHub. Only packages matching this router's OpenWrt branch and architecture are offered, and every package is verified against SHA256SUMS-packages before installation."
+msgstr "Check for a newer rust-dns release on GitHub. Only packages matching this router's OpenWrt branch and architecture are offered, and every package is verified against SHA256SUMS-packages before installation."
+
+msgid "Check for updates"
+msgstr "Check for updates"
+
+msgid "Checking for updates..."
+msgstr "Checking for updates..."
+
+msgid "Failed to check for updates."
+msgstr "Failed to check for updates."
+
+msgid "Failed to check for updates: %s"
+msgstr "Failed to check for updates: %s"
+
+msgid "Failed to read upgrade status: %s"
+msgstr "Failed to read upgrade status: %s"
+
+msgid "Failed to start the upgrade."
+msgstr "Failed to start the upgrade."
+
+msgid "Failed to start the upgrade: %s"
+msgstr "Failed to start the upgrade: %s"
+
+msgid "Installed version"
+msgstr "Installed version"
+
+msgid "Latest version"
+msgstr "Latest version"
+
+msgid "LuCI may reload because rpcd or uhttpd is restarted after the upgrade."
+msgstr "LuCI may reload because rpcd or uhttpd is restarted after the upgrade."
+
+msgid "No upgrade log available."
+msgstr "No upgrade log available."
+
+msgid "Not checked yet"
+msgstr "Not checked yet"
+
+msgid "OpenWrt version"
+msgstr "OpenWrt version"
+
+msgid "Package manager"
+msgstr "Package manager"
+
+msgid "Packages"
+msgstr "Packages"
+
+msgid "Starting upgrade..."
+msgstr "Starting upgrade..."
+
+msgid "System Upgrade"
+msgstr "System Upgrade"
+
+msgid "The router will download and install the latest rust-dns packages from GitHub, then restart the service. Do not power off the router during this process."
+msgstr "The router will download and install the latest rust-dns packages from GitHub, then restart the service. Do not power off the router during this process."
+
+msgid "Unknown"
+msgstr "Unknown"
+
+msgid "Update available"
+msgstr "Update available"
+
+msgid "Update available."
+msgstr "Update available."
+
+msgid "Update status"
+msgstr "Update status"
+
+msgid "Upgrade"
+msgstr "Upgrade"
+
+msgid "Upgrade API is unavailable."
+msgstr "Upgrade API is unavailable."
+
+msgid "Upgrade check API is unavailable."
+msgstr "Upgrade check API is unavailable."
+
+msgid "Upgrade completed successfully. LuCI may reload because rpcd/uhttpd was restarted."
+msgstr "Upgrade completed successfully. LuCI may reload because rpcd/uhttpd was restarted."
+
+msgid "Upgrade failed (exit code %d)."
+msgstr "Upgrade failed (exit code %d)."
+
+msgid "Upgrade failed."
+msgstr "Upgrade failed."
+
+msgid "Upgrade is running..."
+msgstr "Upgrade is running..."
+
+msgid "Upgrade is still running. Check the log for progress."
+msgstr "Upgrade is still running. Check the log for progress."
+
+msgid "Upgrade log"
+msgstr "Upgrade log"
+
+msgid "Upgrade now"
+msgstr "Upgrade now"
+
+msgid "Upgrade rust-dns?"
+msgstr "Upgrade rust-dns?"
+
+msgid "Upgrade status API is unavailable."
+msgstr "Upgrade status API is unavailable."
+
+msgid "Upgrade status is unavailable. Waiting for rpcd to come back..."
+msgstr "Upgrade status is unavailable. Waiting for rpcd to come back..."
+
+msgid "Upgrade stopped without reporting an exit code. Check the log."
+msgstr "Upgrade stopped without reporting an exit code. Check the log."

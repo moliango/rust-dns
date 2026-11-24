@@ -44,6 +44,10 @@ const LOG_MAX_BYTES = 262144;
 const UPDATE_SCRIPT = '/usr/share/rust-dns/rust-dns.uc';
 const UPDATE_LOG = '/var/rust-dns/update.log';
 const UPDATE_LOCK = '/var/lock/rust-dns_update.lock';
+const UPGRADE_CHECK_JSON = '/var/rust-dns/upgrade-check.json';
+const UPGRADE_LOG = '/var/rust-dns/upgrade.log';
+const UPGRADE_LOCK = '/var/lock/rust-dns_upgrade.lock';
+const UPGRADE_LOG_TAIL = 16384;
 const MOCK_DIRS = [ '/var/rust-dns/mock', '/var/rust-dns', '/etc/rust-dns/mock' ];
 
 // Cloudflare IP optimizer (design 11-23-cloudflare-ip-optimizer §2, §5, §6.2).
@@ -1791,6 +1795,71 @@ function read_tail(path, max_bytes) {
 	}
 }
 
+/* -------------------------------------------------------------------------
+ * System upgrade helpers
+ *
+ * The upgrade tool (UPDATE_SCRIPT) and the lock/log paths below belong to the
+ * service package. The UI supplies no arguments, so no user value ever
+ * reaches a command line.
+ * ---------------------------------------------------------------------- */
+
+function upgrade_exit_code(text) {
+	if (type(text) != 'string' || text == '')
+		return null;
+
+	let m = match(text, /UPGRADE_EXITED[ \t]+([0-9]{1,4})/);
+
+	if (m == null || length(m) < 2)
+		return null;
+
+	return int(m[1]);
+}
+
+function upgrade_lock_running() {
+	let info = stat_safe(UPGRADE_LOCK);
+
+	if (info == null)
+		return false;
+
+	// The service package uses a lock directory with a pid file inside it.
+	// Accept a plain lock file as well so an older layout cannot hide a run.
+	let pid_file = (info.type == 'directory') ? UPGRADE_LOCK + '/pid' : UPGRADE_LOCK;
+	let pinfo = stat_safe(pid_file);
+
+	if (pinfo == null || pinfo.type != 'file')
+		return false;
+
+	let pid = '';
+
+	try {
+		pid = trim_value(readfile(pid_file) || '');
+	} catch (e) {
+		return false;
+	}
+
+	// A lock without a readable pid cannot prove that a run is alive. The
+	// short log freshness window in upgrade_status covers the moment before
+	// the tool writes the pid.
+	if (!match(pid, /^[0-9]{1,10}$/))
+		return false;
+
+	return stat_safe('/proc/' + pid) != null;
+}
+
+function upgrade_log_active(max_age) {
+	let info = stat_safe(UPGRADE_LOG);
+
+	if (info == null || info.type != 'file' || info.size == 0)
+		return false;
+
+	if (upgrade_exit_code(read_tail(UPGRADE_LOG, UPGRADE_LOG_TAIL)) != null)
+		return false;
+
+	let age = time() - info.mtime;
+
+	return (age >= 0 && age <= max_age);
+}
+
 function cf_pid_running() {
 	try {
 		let pid = trim_value(readfile(CF_PID));
@@ -2276,6 +2345,212 @@ const methods = {
 			try {
 				if (stat(UPDATE_LOG)) {
 					let content = readfile(UPDATE_LOG);
+					return { log: (type(content) == 'string') ? content : '' };
+				}
+				return { log: '' };
+			} catch (e) {
+				return { error: String(e) };
+			}
+		}
+	},
+
+	upgrade_check: {
+		call: function() {
+			try {
+				if (stat_safe(UPDATE_SCRIPT) == null)
+					return {
+						success: false,
+						error: 'Upgrade tool is not installed (rust-dns service package).'
+					};
+
+				// Remove any previous result first so a failed check can never
+				// make the UI display a stale "update available" answer. If the
+				// file cannot be removed, only a newer mtime is accepted.
+				let removed = false;
+				let previous = stat_safe(UPGRADE_CHECK_JSON);
+
+				if (previous == null) {
+					removed = true;
+				}
+				else {
+					try {
+						unlink(UPGRADE_CHECK_JSON);
+					} catch (e) {}
+					removed = stat_safe(UPGRADE_CHECK_JSON) == null;
+				}
+
+				let started = time();
+				let run = exec_sys('/usr/bin/ucode ' + UPDATE_SCRIPT + ' upgrade --check');
+				let detail = (type(run.stdout) == 'string' && run.stdout != '')
+					? substr(run.stdout, 0, 512) : '';
+				let info = stat_safe(UPGRADE_CHECK_JSON);
+				let fresh = (info != null) && (removed || info.mtime >= started);
+				let read = fresh ? read_json_file(UPGRADE_CHECK_JSON) : { missing: true };
+				let parsed = (read.value != null && type(read.value) == 'object') ? read.value : null;
+
+				if (parsed != null) {
+					let out = {};
+
+					for (let key, value in parsed)
+						out[key] = value;
+
+					out.success = (run.code === 0);
+
+					if (run.code !== 0 && out.error == null)
+						out.error = detail || ('Update check failed with exit code ' + run.code + '.');
+
+					return out;
+				}
+
+				let error;
+
+				if (!fresh)
+					error = (run.code !== 0)
+						? 'Update check failed with exit code ' + run.code + '.' +
+							(detail ? ' ' + detail : '')
+						: 'The upgrade check did not write a fresh ' + UPGRADE_CHECK_JSON + '.';
+				else if (read.invalid)
+					error = 'The upgrade check wrote invalid JSON to ' + UPGRADE_CHECK_JSON + '.';
+				else if (run.code !== 0)
+					error = 'Update check failed with exit code ' + run.code + '.' +
+						(detail ? ' ' + detail : '');
+				else
+					error = 'The upgrade check did not write ' + UPGRADE_CHECK_JSON + '.';
+
+				return { success: false, error: error, exit_code: run.code };
+			} catch (e) {
+				return { success: false, error: String(e) };
+			}
+		}
+	},
+
+	upgrade_start: {
+		call: function() {
+			try {
+				if (stat_safe(UPDATE_SCRIPT) == null)
+					return {
+						success: false,
+						error: 'Upgrade tool is not installed (rust-dns service package).'
+					};
+
+				if (upgrade_lock_running())
+					return { success: false, error: 'An upgrade is already in progress.' };
+
+				// The live pid lock above is authoritative. Only bridge the
+				// short window before the tool creates it; a stale interrupted
+				// log must not block a retry for minutes.
+				if (upgrade_log_active(15))
+					return { success: false, error: 'An upgrade is already in progress.' };
+
+				// Truncate synchronously so status polling cannot read a marker
+				// left over from a previous run before the detached command runs.
+				try {
+					let f = open(UPGRADE_LOG, 'w');
+
+					if (f)
+						f.close();
+				} catch (e) {}
+
+				// Fixed script and fixed paths; stdout/stderr are truncated into
+				// the log and a marker is appended even if the tool itself cannot
+				// write, so the UI always gets a terminal state.
+				let cmd = 'mkdir -p /var/rust-dns 2>/dev/null; ' +
+					'( /usr/bin/ucode ' + UPDATE_SCRIPT + ' upgrade > ' + UPGRADE_LOG + ' 2>&1; ' +
+					'echo "UPGRADE_EXITED $?" >> ' + UPGRADE_LOG + ' ) >/dev/null 2>&1 &';
+
+				let p = popen(cmd, 'r');
+
+				if (!p)
+					return { success: false, error: 'Unable to launch the upgrade process.' };
+
+				p.close();
+
+				return { success: true };
+			} catch (e) {
+				return { success: false, error: String(e) };
+			}
+		}
+	},
+
+	upgrade_status: {
+		call: function() {
+			try {
+				let read = read_json_file(UPGRADE_CHECK_JSON);
+				let parsed = (read.value != null && type(read.value) == 'object') ? read.value : null;
+				let info = stat_safe(UPGRADE_LOG);
+				let tail = read_tail(UPGRADE_LOG, UPGRADE_LOG_TAIL);
+				let exit_code = upgrade_exit_code(tail);
+				let lock_running = upgrade_lock_running();
+				let log_active = upgrade_log_active(15);
+				let running = (lock_running || log_active) && exit_code == null;
+				let state;
+				let error = null;
+
+				if (running) {
+					state = 'running';
+				}
+				else if (exit_code != null) {
+					state = (exit_code === 0) ? 'done' : 'error';
+
+					if (exit_code !== 0)
+						error = 'Upgrade failed with exit code ' + exit_code + '.';
+				}
+				else if (info != null && info.type == 'file' && info.size > 0) {
+					// No live lock and no marker: an interrupted run. Reporting
+					// "running" here would leave the UI polling forever.
+					state = 'error';
+					error = 'The upgrade process is not running; the previous run may have been interrupted.';
+				}
+				else {
+					state = 'idle';
+				}
+
+				let out = {
+					state: state,
+					running: (state == 'running'),
+					log_tail: tail,
+					error: error
+				};
+
+				if (exit_code != null)
+					out.exit_code = exit_code;
+
+				// Check data is informational for the install state: the log and
+				// its UPGRADE_EXITED marker are authoritative. A check file older
+				// than the current run may still describe the versions offered.
+				if (parsed != null) {
+					for (let key, value in parsed) {
+						if (key == 'error')
+							continue;
+						out[key] = value;
+					}
+
+					if (out.error == null && parsed.error != null)
+						out.error = parsed.error;
+				}
+
+				// A successful upgrade makes the last check result stale even
+				// though its file still says "update available". Reflect the
+				// installed version and require a fresh check before offering
+				// the same upgrade again.
+				if (exit_code === 0) {
+					if (type(out.latest) == 'string' && out.latest != '')
+						out.current = out.latest;
+					out.update_available = false;
+				}
+
+				return out;
+			} catch (e) {
+				return { state: 'error', error: String(e), log_tail: '' };
+			}
+		}
+	},
+
+	upgrade_log: {
+		call: function() {
+			try {
+				if (stat_safe(UPGRADE_LOG) != null) {
+					let content = readfile(UPGRADE_LOG);
 					return { log: (type(content) == 'string') ? content : '' };
 				}
 				return { log: '' };

@@ -9,7 +9,7 @@
 插件化配置、LuCI 管理页面、本地统计 API，以及 Cloudflare 优选 IP 工具。
 
 > **状态**：DNS 核心 MVP 与管理端均已实现并通过测试：UDP/TCP 监听、`sequence` 子集、
-> UDP/TCP/DoT 上游、TTL 缓存、stats 打点、LuCI 六页、OpenWrt 服务包与 Cloudflare 优选。
+> UDP/TCP/DoT 上游、TTL 缓存、stats 打点、LuCI 七页、OpenWrt 服务包与 Cloudflare 优选。
 > DoT/DoH/DoQ 服务端、DoH 上游、IP_PKTINFO、多 worker、ECS/双栈优选和完整 geoip 语义属于后续工作。
 
 ## 功能
@@ -27,7 +27,8 @@
   - 延迟 + 下载测速、官方 IP 段抓取缓存、`SO_MARK`/设备绑定、直连校验。
   - 结果列表点击/批量写入 rust-dns hosts 受管块，reload 生效。
 - **OpenWrt 打包**
-  - 服务包 `rust-dns` + 前端包 `luci-app-rust-dns`。
+  - 服务包 `rust-dns` + 前端包 `luci-app-rust-dns`，并自带地理数据更新所需的
+    `geo2txt` 辅助包。
   - 目标：OpenWrt 23.05+（opkg）、24.10（opkg）、25.12/main（apk）。
   - 架构：x86_64、aarch64、armv7（v1 不含 MIPS/armv5）。
 
@@ -40,7 +41,7 @@ rust-dns/                     Rust workspace（Rust 1.100.0，MSRV 1.88）
 ├── crates/rust-dns-stats-api/    /api/v1 collector + HTTP API
 └── crates/rust-dns-cf-optimizer/ Cloudflare 优选、绕过校验、hosts 合并
 openwrt/rust-dns/             OpenWrt 服务包（init、UCI、config.sh、rust-dns.uc、规则）
-luci-app-rust-dns/            LuCI 前端（六页、rpcd、ACL、po、CodeMirror）
+luci-app-rust-dns/            LuCI 前端（七页、rpcd、ACL、po、CodeMirror）
 dev/                          mock API 与本地 stub（不安装）
 dist/                         本地 release 产物（不提交）
 ```
@@ -102,23 +103,43 @@ GitHub Release 会附带 CI 构建好的 OpenWrt 包：
   arm_cortex-a7_neon-vfpv4。
 - **25.12.6 apk**：x86_64。
 
+每个 Release 包含四个包：
+
+- `geo2txt`：地理数据更新使用的 geosite/geoip `.dat` 解包工具。
+- `rust-dns`：服务/守护进程包。
+- `luci-app-rust-dns`：LuCI 前端。
+- `luci-i18n-rust-dns-*`：可选中文界面翻译。
+
 下载与你的 OpenWrt 版本、包架构匹配的文件。Release 文件名带 OpenWrt 版本和
 目标架构前缀以避免重名，例如
-`24.10.8_x86_64-24.10.8_rust-dns_0.1.0-r1_x86_64.ipk`。直接安装即可：
+`24.10.8_x86_64-24.10.8_rust-dns_0.1.1-r1_x86_64.ipk`。请先装 **geo2txt**，
+再装服务包，最后装 LuCI：
 
 ```sh
-opkg install *rust-dns_*.ipk *luci-app-rust-dns_*.ipk
+opkg install ./24.10.8_*_geo2txt_*.ipk
+opkg install ./24.10.8_*_rust-dns_*.ipk
+opkg install ./24.10.8_*_luci-app-rust-dns_*.ipk
 # apk 版本：
-apk add --allow-untrusted *rust-dns-*.apk *luci-app-rust-dns-*.apk
+apk add --allow-untrusted ./25.12.6_*_geo2txt-*.apk
+apk add --allow-untrusted ./25.12.6_*_rust-dns-*.apk
+apk add --allow-untrusted ./25.12.6_*_luci-app-rust-dns-*.apk
 ```
+
+先装 `geo2txt`，本地的 `rust-dns` 包才能把它作为依赖解析（`opkg`/`apk`
+不会从本地文件解析依赖）。
+
+也可以从 LuCI 升级：**服务 → Rust DNS → System Upgrade** 只检查固定的
+`moliango/rust-dns` GitHub 仓库，按路由器当前 OpenWrt 分支和目标架构选择包，
+并用 Release 的 `SHA256SUMS-packages` 校验每个下载文件。
 
 `luci-i18n-rust-dns-*` 是可选的中文界面翻译包。
 
-如需自行构建，把 `openwrt/rust-dns` 和 `luci-app-rust-dns` 放进 OpenWrt SDK 的
-`package/`，把 release tarball 的 SHA256 写入
-`openwrt/rust-dns/hashes/<arch>.sha256`，然后：
+如需自行构建，把 `openwrt/rust-dns`、`openwrt/geo2txt` 和
+`luci-app-rust-dns` 放进 OpenWrt SDK 的 `package/`，把 release tarball 的
+SHA256 写入 `openwrt/rust-dns/hashes/<arch>.sha256`，然后：
 
 ```sh
+make package/geo2txt/compile V=s
 make package/rust-dns/compile V=s
 make package/luci-app-rust-dns/compile V=s
 ```
@@ -227,14 +248,15 @@ WAN 接口；直连校验失败时 UI 会警告，必要时可显式暂停 OpenC
 - tag `v*` 或手动触发：三架构静态 musl 构建，生成
   `rust-dns-<version>-<arch>.tar.gz` + `.sha256`，上传 GitHub Release；
   同时生成 `rust-dns-<version>-openwrt-src.tar.gz`。
-- 同一 workflow 用 `openwrt/gh-action-sdk` 构建 OpenWrt ipk/apk 并附到 Release：
+- 同一 workflow 用 OpenWrt SDK 容器构建 ipk/apk 并附到 Release：
   23.05.5/24.10.8 的 x86_64、aarch64_generic、aarch64_cortex-a53、
-  arm_cortex-a7_neon-vfpv4 ipk，以及 25.12.6 x86_64 apk。
+  arm_cortex-a7_neon-vfpv4 ipk，25.12.6 x86_64 apk，以及 `geo2txt` 辅助包；
+  同时发布供 LuCI 升级后端校验用的 `SHA256SUMS-packages`。
 - 发布：
 
 ```sh
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1
+git push origin v0.1.1
 ```
 
 发布后把 release 的 SHA256 填回 `openwrt/rust-dns/hashes/<arch>.sha256`，

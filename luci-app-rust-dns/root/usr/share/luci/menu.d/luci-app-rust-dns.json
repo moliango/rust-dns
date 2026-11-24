@@ -57,5 +57,13 @@
 			"type": "view",
 			"path": "rust-dns/logs"
 		}
+	},
+	"admin/services/rust-dns/upgrade": {
+		"title": "System Upgrade",
+		"order": 35,
+		"action": {
+			"type": "view",
+			"path": "rust-dns/upgrade"
+		}
 	}
 }

@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version without the leading v (e.g. 0.1.0)"
+        description: "Release version without the leading v (e.g. 0.1.1)"
         required: false
-        default: "0.1.0"
+        default: "0.1.1"
 
 permissions:
   contents: write
@@ -58,6 +58,24 @@ jobs:
         run: |
           for f in luci-app-rust-dns/htdocs/luci-static/resources/view/rust-dns/*.js; do
             node --check "$f"
+          done
+
+      # ucode has no throw statement, and \s inside a character class is a
+      # literal "s" (not whitespace). Both mistakes silently broke the rpcd
+      # module in 0.1.0, so fail CI on them instead of shipping again.
+      - name: ucode static guards
+        run: |
+          set -eu
+          for f in openwrt/rust-dns/files/rust-dns.uc \
+                   luci-app-rust-dns/root/usr/share/rpcd/ucode/luci.rust_dns; do
+            if grep -nE '(^|[^A-Za-z0-9_])throw([^A-Za-z0-9_]|$)' "$f"; then
+              echo "ERROR: ucode has no throw statement; use die()" >&2
+              exit 1
+            fi
+            if grep -nP '\[[^]\n]*\\s[^]\n]*\]' "$f"; then
+              echo "ERROR: \\s inside a ucode character class is literal 's'; use [ \\t\\r\\n\\f\\v]" >&2
+              exit 1
+            fi
           done
 
       - name: Mock API and shell syntax
@@ -185,7 +203,8 @@ jobs:
             VERSION="${GITHUB_REF_NAME#v}"
           fi
           tar -czf "rust-dns-${VERSION}-openwrt-src.tar.gz" \
-            openwrt/rust-dns luci-app-rust-dns README.md README.zh-CN.md LICENSE
+            openwrt/rust-dns openwrt/geo2txt luci-app-rust-dns \
+            docs/RELEASE-NOTES-0.1.1.md README.md README.zh-CN.md LICENSE
           (cd artifacts && sha256sum *.tar.gz > SHA256SUMS)
           cat artifacts/SHA256SUMS
 
@@ -194,6 +213,10 @@ jobs:
         with:
           tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v{0}', github.event.inputs.version) }}
           generate_release_notes: true
+          body: |
+            OpenWrt packages are published with a `SHA256SUMS-packages` manifest used by the
+            LuCI upgrade backend. The 0.1.1 release notes are in
+            `docs/RELEASE-NOTES-0.1.1.md` and in the source bundle.
           files: |
             artifacts/*.tar.gz
             artifacts/*.sha256
@@ -237,6 +260,7 @@ jobs:
           set -eu
           mkdir -p feed sdk-artifacts
           cp -a openwrt/rust-dns feed/rust-dns
+          cp -a openwrt/geo2txt feed/geo2txt
           cp -a luci-app-rust-dns feed/luci-app-rust-dns
 
           VERSION="${{ steps.version.outputs.version }}"
@@ -266,7 +290,7 @@ jobs:
             -v "$PWD/entrypoint.sh:/entrypoint.sh:ro" \
             -e FEEDNAME=rustdns \
             -e RUST_DNS_ARCH=${{ matrix.bin_arch }} \
-            -e PACKAGES="rust-dns luci-app-rust-dns" \
+            -e PACKAGES="rust-dns luci-app-rust-dns geo2txt" \
             -e NO_REFRESH_CHECK=1 \
             -e NO_SHFMT_CHECK=1 \
             -e BUILD_LOG=1 \
@@ -284,7 +308,7 @@ jobs:
               while IFS= read -r file; do
                 base="$(basename "$file")"
                 case "$base" in
-                  rust-dns[_-]*|luci-app-rust-dns[_-]*|luci-i18n-rust-dns[_-]*)
+                  rust-dns[_-]*|luci-app-rust-dns[_-]*|luci-i18n-rust-dns[_-]*|geo2txt[_-]*)
                     cp "$file" "out/${{ matrix.label }}_${{ matrix.arch }}_${base}"
                     ;;
                 esac
@@ -344,6 +368,23 @@ jobs:
             echo "no OpenWrt packages were produced"
           fi
 
+      # The LuCI upgrade backend maps the release asset name to its checksum,
+      # so each manifest line must use the exact (basename) asset name.
+      - name: Generate package checksums
+        if: steps.check.outputs.found == 'true'
+        run: |
+          set -eu
+          (
+            cd packages
+            find . -maxdepth 1 -type f \( -name '*.ipk' -o -name '*.apk' \) -printf '%f\n' |
+              LC_ALL=C sort |
+              while IFS= read -r file; do
+                sha256sum "$file"
+              done > SHA256SUMS-packages
+          )
+          echo "== packages/SHA256SUMS-packages =="
+          cat packages/SHA256SUMS-packages
+
       - name: Publish OpenWrt packages
         if: steps.check.outputs.found == 'true'
         uses: softprops/action-gh-release@v2
@@ -352,3 +393,4 @@ jobs:
           files: |
             packages/**/*.ipk
             packages/**/*.apk
+            packages/SHA256SUMS-packages

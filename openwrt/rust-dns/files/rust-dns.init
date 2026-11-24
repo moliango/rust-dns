@@ -77,6 +77,7 @@ load_config() {
     config_get cfg_configfile config configfile "$CONFIG_JSON"
     config_get cfg_listen_address config listen_address 0.0.0.0
     config_get cfg_listen_port config listen_port 5335
+    config_get cfg_listen_port_api config listen_port_api 9091
     config_get cfg_log_file config log_file /var/log/rust-dns.log
     config_get cfg_log_level config log_level error
     config_get cfg_redirect config redirect 0
@@ -213,10 +214,24 @@ render_and_check() {
 
 check_mosdns_conflict() {
     command -v uci >/dev/null 2>&1 || return 0
+
+    # mosdns and rust-dns can coexist, but both the DNS listener and the admin
+    # API must use different ports.  Check both; the API port is easy to miss
+    # because the service itself can still bind DNS and only the LuCI pages
+    # fail afterwards.
     _mosdns_port="$(uci -q get mosdns.config.listen_port 2>/dev/null)"
-    [ -n "$_mosdns_port" ] || return 0
-    [ "$_mosdns_port" = "$cfg_listen_port" ] || return 0
-    _msg="listen_port $cfg_listen_port conflicts with mosdns; set rust-dns listen_port to 5336"
+    _mosdns_api="$(uci -q get mosdns.config.listen_port_api 2>/dev/null)"
+    _msg=""
+
+    if [ -n "$_mosdns_port" ] && [ "$_mosdns_port" = "$cfg_listen_port" ]; then
+        _msg="listen_port $cfg_listen_port conflicts with mosdns; set rust-dns listen_port to 5336"
+    fi
+    if [ -n "$_mosdns_api" ] && [ "$_mosdns_api" = "$cfg_listen_port_api" ]; then
+        [ -n "$_msg" ] && _msg="$_msg; "
+        _msg="${_msg}listen_port_api $cfg_listen_port_api conflicts with mosdns; set rust-dns listen_port_api to 9092"
+    fi
+
+    [ -n "$_msg" ] || return 0
     logger_warn "$_msg"
     write_error "coexist" "$_msg"
 }

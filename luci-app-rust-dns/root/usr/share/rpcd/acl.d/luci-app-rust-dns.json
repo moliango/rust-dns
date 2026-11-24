@@ -33,6 +33,9 @@
 					"get_leases",
 					"get_update_log",
 					"import_mosdns_preview",
+					"upgrade_check",
+					"upgrade_status",
+					"upgrade_log",
 					"cf_status",
 					"cf_results"
 				]
@@ -57,6 +60,7 @@
 					"flush_cache",
 					"clean_log",
 					"start_update",
+					"upgrade_start",
 					"import_mosdns_apply",
 					"cf_start",
 					"cf_cancel",
