@@ -28,3 +28,6 @@ AGENTS.md
 *.tmp
 *.bak
 .DS_Store
+
+# ucode compile output
+uc.out
