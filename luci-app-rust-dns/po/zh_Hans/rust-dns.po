@@ -1419,6 +1419,21 @@ msgstr "通过"
 msgid "Failed"
 msgstr "失败"
 
+msgid "Not tested"
+msgstr "未测速"
+
+msgid "Only the fastest latency results receive a download test."
+msgstr "只有延迟排名靠前的结果会进行下载测速。"
+
+msgid "Speed-tested"
+msgstr "已测速"
+
+msgid "Page %d of %d"
+msgstr "第 %d / %d 页"
+
+msgid "Showing %d-%d of %d"
+msgstr "显示第 %d-%d 条，共 %d 条"
+
 msgid "Write to hosts"
 msgstr "写入 hosts"
 
