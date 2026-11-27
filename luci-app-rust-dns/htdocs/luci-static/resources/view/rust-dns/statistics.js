@@ -87,6 +87,7 @@ const WHITELIST_FILE = '/etc/rust-dns/rule/whitelist.txt';
 const BLOCKLIST_FILE = '/etc/rust-dns/rule/blocklist.txt';
 let isUserPaused = false;
 let pollRegistered = false;
+let visibilityRegistered = false;
 
 let nodeStats;
 let nodeTop;
@@ -1058,6 +1059,10 @@ const renderLogsTable = logsData => {
 };
 
 const pollScheduler = async () => {
+	/* Skip RPC and DOM work while the tab is in the background. */
+	if (document.visibilityState === 'hidden')
+		return;
+
 	if (isUserPaused) {
 		updateLiveStatusBadge();
 		return;
@@ -1252,6 +1257,14 @@ return view.extend({
 		if (!pollRegistered) {
 			pollRegistered = true;
 			poll.add(pollScheduler, 5);
+		}
+
+		if (!visibilityRegistered) {
+			visibilityRegistered = true;
+			document.addEventListener('visibilitychange', () => {
+				if (document.visibilityState === 'visible')
+					pollScheduler();
+			});
 		}
 
 		return E('div', { class: 'cbi-map' }, [

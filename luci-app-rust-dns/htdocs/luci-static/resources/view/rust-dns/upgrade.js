@@ -51,7 +51,8 @@ const state = {
 	busy: false,
 	inFlight: false,
 	polling: null,
-	startedAt: 0
+	startedAt: 0,
+	visibilityRegistered: false
 };
 
 function errorText(e) {
@@ -183,8 +184,20 @@ function ensurePolling() {
 			return;
 		}
 
+		/* Do not keep the RPC loop busy for a background tab. */
+		if (document.visibilityState === 'hidden')
+			return;
+
 		refreshStatus();
 	}, POLL_INTERVAL_MS);
+
+	if (!state.visibilityRegistered) {
+		state.visibilityRegistered = true;
+		document.addEventListener('visibilitychange', () => {
+			if (document.visibilityState === 'visible' && state.polling !== null)
+				refreshStatus();
+		});
+	}
 }
 
 function timedOut() {

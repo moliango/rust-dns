@@ -93,11 +93,17 @@ const state = {
 	sortDir: 'desc',
 	filter: '',
 	passedFilter: 'all',
+	page: 0,
 	selected: {},
 	busy: false,
 	refreshInFlight: false,
-	pollRegistered: false
+	pollRegistered: false,
+	visibilityRegistered: false
 };
+
+/* Results often contain 1000+ candidates; rendering them all made the page
+ * heavy to build and tear down. Only one page of rows is in the DOM. */
+const PAGE_SIZE = 100;
 
 function safeCall(fn, fallback) {
 	try {
@@ -149,6 +155,7 @@ function styleSheet() {
 		'.cf-fail { background: rgba(220,38,38,0.14); color: #dc2626; }',
 		'.cf-untested { background: rgba(125,125,125,0.14); opacity: 0.85; }',
 		'.cf-meta { display: flex; flex-wrap: wrap; gap: 0.35rem 1.25rem; font-size: 0.8rem; opacity: 0.85; margin-top: 0.5rem; }',
+		'.cf-pager { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.5rem; font-size: 0.8rem; }',
 		'.cf-preview { max-height: 220px; overflow: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; background: rgba(125,125,125,0.08); padding: 0.6rem; border-radius: 4px; white-space: pre; }',
 		'.cf-log { max-height: 220px; overflow: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; white-space: pre-wrap; background: rgba(125,125,125,0.08); padding: 0.6rem; border-radius: 4px; }',
 		'.cf-domains { min-height: 4.5em; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }',
@@ -442,6 +449,7 @@ function render() {
 
 	filterInput.addEventListener('input', () => {
 		state.filter = filterInput.value.trim().toLowerCase();
+		state.page = 0;
 		renderResults();
 	});
 
@@ -453,6 +461,7 @@ function render() {
 
 	passedSelect.addEventListener('change', () => {
 		state.passedFilter = passedSelect.value;
+		state.page = 0;
 		renderResults();
 	});
 
@@ -470,7 +479,7 @@ function render() {
 
 	el.tableHeadAll = E('input', { type: 'checkbox' });
 	el.tableHeadAll.addEventListener('change', () => {
-		const rows = filteredRows().filter(row => row.passed === true);
+		const rows = (el.pageRows || []).filter(row => row.passed === true);
 		const want = el.tableHeadAll.checked;
 
 		rows.forEach(row => {
@@ -496,6 +505,7 @@ function render() {
 					key === 'latency_avg_ms' || key === 'loss_pct') ? 'asc' : 'desc';
 			}
 
+			state.page = 0;
 			renderResults();
 		});
 
@@ -522,6 +532,7 @@ function render() {
 		])
 	]);
 
+	el.pager = E('div', { class: 'cf-pager' }, '');
 	el.reportMeta = E('div', { class: 'cf-meta' }, _('No results yet.'));
 
 	el.log = E('pre', { class: 'cf-log' }, '');
@@ -571,6 +582,7 @@ function render() {
 					el.clear
 				]),
 				table,
+				el.pager,
 				el.reportMeta
 			])
 		])
@@ -590,6 +602,14 @@ function render() {
 	if (!state.pollRegistered) {
 		state.pollRegistered = true;
 		poll.add(pollStatus, 1);
+	}
+
+	if (!state.visibilityRegistered) {
+		state.visibilityRegistered = true;
+		document.addEventListener('visibilitychange', () => {
+			if (document.visibilityState === 'visible')
+				pollStatus();
+		});
 	}
 
 	return root;
@@ -747,6 +767,11 @@ function applyStatus(res) {
 }
 
 function pollStatus() {
+	/* Nothing on the page is visible while the tab is in the background;
+	 * skip the RPC and DOM work instead of keeping the browser busy. */
+	if (document.visibilityState === 'hidden')
+		return Promise.resolve();
+
 	return safeCall(callCfStatus, {
 		available: false,
 		state: 'idle',
@@ -774,6 +799,7 @@ function refreshResults(showNotification) {
 
 		if (res.success && res.report) {
 			state.report = res.report;
+			state.page = 0;
 
 			/* Drop selections for IPs that are no longer part of the result. */
 			const seen = {};
@@ -795,6 +821,7 @@ function refreshResults(showNotification) {
 		else {
 			state.report = null;
 			state.selected = {};
+			state.page = 0;
 			renderResults();
 			renderReportMeta(null);
 			updateWarnings();
@@ -931,18 +958,69 @@ function sortedRows(rows) {
 	});
 }
 
+function renderPager(el, total, pageCount, start, count) {
+	if (!el || !el.pager)
+		return;
+
+	el.pager.innerHTML = '';
+
+	if (total <= PAGE_SIZE)
+		return;
+
+	const prevAttrs = {
+		class: 'btn cbi-button',
+		click: () => {
+			if (state.page > 0) {
+				state.page--;
+				renderResults();
+			}
+		}
+	};
+	const nextAttrs = {
+		class: 'btn cbi-button',
+		click: () => {
+			if (state.page < pageCount - 1) {
+				state.page++;
+				renderResults();
+			}
+		}
+	};
+
+	if (state.page === 0)
+		prevAttrs.disabled = 'disabled';
+	if (state.page >= pageCount - 1)
+		nextAttrs.disabled = 'disabled';
+
+	el.pager.appendChild(E('button', prevAttrs, _('Previous')));
+	el.pager.appendChild(E('span', {},
+		_('Page %d of %d').format(state.page + 1, pageCount)));
+	el.pager.appendChild(E('button', nextAttrs, _('Next')));
+	el.pager.appendChild(E('span', { class: 'cf-hint' },
+		_('Showing %d-%d of %d').format(start + 1, start + count, total)));
+}
+
 function renderResults() {
 	const el = state.el;
 
 	if (!el || !el.tableBody)
 		return;
 
-	const rows = sortedRows(filteredRows());
+	const matching = sortedRows(filteredRows());
+	const pageCount = Math.max(1, Math.ceil(matching.length / PAGE_SIZE));
+
+	if (state.page >= pageCount)
+		state.page = pageCount - 1;
+	if (state.page < 0)
+		state.page = 0;
+
+	const start = state.page * PAGE_SIZE;
+	const rows = matching.slice(start, start + PAGE_SIZE);
 	const visibleIps = {};
 
+	el.pageRows = rows;
 	el.tableBody.innerHTML = '';
 
-	if (rows.length === 0) {
+	if (matching.length === 0) {
 		el.tableBody.appendChild(E('tr', {}, [
 			E('td', { class: 'cf-empty', colspan: '9' },
 				state.report ? _('No results match the current filter.') : _('No results yet. Run a test or load the last result.'))
@@ -1000,6 +1078,8 @@ function renderResults() {
 			]));
 		});
 	}
+
+	renderPager(el, matching.length, pageCount, start, rows.length);
 
 	/* Sort indicators. */
 	Object.keys(el.sortHeaders).forEach(key => {
@@ -1239,6 +1319,7 @@ function clearResults() {
 		if (res.success) {
 			state.report = null;
 			state.selected = {};
+			state.page = 0;
 			renderResults();
 			renderReportMeta(null);
 			updateWarnings();
