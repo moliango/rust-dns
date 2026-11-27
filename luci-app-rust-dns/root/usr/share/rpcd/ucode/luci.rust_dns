@@ -125,6 +125,33 @@ function exec_sys(cmd) {
 	return { code: code, stdout: stdout || "" };
 }
 
+/* fs.popen() in the ucode shipped by OpenWrt 23.05-25.12 only accepts a
+ * command string; the execvp/argv-array form only landed upstream in 2026-07
+ * and returns null on current routers.  Build a quoted command line instead,
+ * so the shell receives exactly the argv this module validated, with no word
+ * splitting or expansion. */
+function shquote(value) {
+	let parts = split('' + value, "'");
+	let out = "'";
+
+	for (let i = 0; i < length(parts); i++) {
+		if (i > 0)
+			out += "'\\''";
+		out += parts[i];
+	}
+
+	return out + "'";
+}
+
+function argv_to_command(argv) {
+	let cmd = '';
+
+	for (let i = 0; i < length(argv); i++)
+		cmd += (i > 0 ? ' ' : '') + shquote(argv[i]);
+
+	return cmd;
+}
+
 function parse_json_safe(str) {
 	if (!str || str == "")
 		return null;
@@ -1112,10 +1139,10 @@ function reload_rust_dns() {
  * Cloudflare optimizer helpers
  *
  * The UI sends plain values; this layer validates every one of them and turns
- * them into an argv array. fs.popen() is called with that array (execvp, no
- * shell), so no user value is ever parsed by a shell. A fixed /bin/sh wrapper
- * is used only for output redirection and backgrounding and receives the
- * optimizer argv as positional parameters.
+ * them into an argv array.  fs.popen() only accepts a command string on the
+ * ucode shipped by current OpenWrt releases, so the argv is passed through
+ * shquote() before the shell sees it; every user value becomes a single,
+ * literal argument and is never parsed as shell syntax.
  * ---------------------------------------------------------------------- */
 
 function trim_value(value) {
@@ -1666,15 +1693,10 @@ function build_cf_argv(config) {
 	return { argv: argv };
 }
 
-/* Run a fixed argv through a wrapper that only merges stderr into stdout.
- * User values remain positional arguments; the shell never parses them. */
+/* Run a fixed argv with stderr merged into stdout.  The argv is shell-quoted,
+ * so user values stay single arguments; the shell never interprets them. */
 function run_argv_capture(argv) {
-	let launch = [ '/bin/sh', '-c', 'exec "$@" 2>&1', 'sh' ];
-
-	for (let i = 0; i < length(argv); i++)
-		push(launch, argv[i]);
-
-	let p = popen(launch, 'r');
+	let p = popen(argv_to_command(argv) + ' 2>&1', 'r');
 
 	if (!p)
 		return { code: -1, output: '' };
@@ -2609,15 +2631,12 @@ const methods = {
 
 				let command = built.argv;
 
-				// ucode's fs.popen() accepts an argv array and uses execvp(),
-				// so no user value is ever parsed by a shell. A fixed /bin/sh
-				// wrapper is used only for log redirection and backgrounding;
-				// the optimizer argv is passed positionally as "$@".
-				let wrapper = 'log=$1; pid=$2; shift 2; "$@" > "$log" 2>&1 & echo $! > "$pid"';
-				let launch = [ '/bin/sh', '-c', wrapper, 'sh', CF_LOG, CF_PID ];
-
-				for (let i = 0; i < length(command); i++)
-					push(launch, command[i]);
+				// OpenWrt's ucode has no argv-array popen(), so every
+				// validated argument is shell-quoted before it reaches
+				// /bin/sh.  The trailing & backgrounds the optimizer and
+				// stores its pid; the shell itself exits immediately.
+				let launch = argv_to_command(command) +
+					' > ' + shquote(CF_LOG) + ' 2>&1 & echo $! > ' + shquote(CF_PID);
 
 				let p = popen(launch, 'r');
 

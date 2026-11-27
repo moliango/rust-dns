@@ -112,7 +112,7 @@ GitHub Release 会附带 CI 构建好的 OpenWrt 包：
 
 下载与你的 OpenWrt 版本、包架构匹配的文件。Release 文件名带 OpenWrt 版本和
 目标架构前缀以避免重名，例如
-`24.10.8_x86_64-24.10.8_rust-dns_0.1.3-r1_x86_64.ipk`。请先装 **geo2txt**，
+`24.10.8_x86_64-24.10.8_rust-dns_0.1.4-r1_x86_64.ipk`。请先装 **geo2txt**，
 再装服务包，最后装 LuCI：
 
 ```sh
@@ -256,8 +256,8 @@ WAN 接口；直连校验失败时 UI 会警告，必要时可显式暂停 OpenC
 - 发布：
 
 ```sh
-git tag v0.1.3
-git push origin v0.1.3
+git tag v0.1.4
+git push origin v0.1.4
 ```
 
 发布后把 release 的 SHA256 填回 `openwrt/rust-dns/hashes/<arch>.sha256`，

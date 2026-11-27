@@ -823,7 +823,7 @@ dependencies = [
 
 [[package]]
 name = "rust-dns"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -840,7 +840,7 @@ dependencies = [
 
 [[package]]
 name = "rust-dns-cf-optimizer"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "anyhow",
  "clap",
@@ -857,7 +857,7 @@ dependencies = [
 
 [[package]]
 name = "rust-dns-core"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "async-trait",
  "hickory-proto",
@@ -876,7 +876,7 @@ dependencies = [
 
 [[package]]
 name = "rust-dns-stats-api"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "async-trait",
  "axum",

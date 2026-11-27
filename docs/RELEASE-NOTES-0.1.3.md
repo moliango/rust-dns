@@ -1,5 +1,8 @@
 # rust-dns 0.1.3 发布说明
 
+> 0.1.3 的 Cloudflare 优选启动问题（`fs.popen()` 不接受 argv 数组）已在
+> 0.1.4 修复，见 [`RELEASE-NOTES-0.1.4.md`](RELEASE-NOTES-0.1.4.md)。
+
 修复 0.1.2 的一个 LuCI 打包缺陷：包内文件的权限被构建流程改成了 `0777`，
 导致 rpcd 拒绝加载 `luci.rust_dns`，LuCI 的统计、升级、设置等页面都无法工作。
 

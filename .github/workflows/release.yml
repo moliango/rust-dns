@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version without the leading v (e.g. 0.1.3)"
+        description: "Release version without the leading v (e.g. 0.1.4)"
         required: false
-        default: "0.1.3"
+        default: "0.1.4"
 
 permissions:
   contents: write
@@ -74,6 +74,13 @@ jobs:
             fi
             if grep -nP '\[[^]\n]*\\s[^]\n]*\]' "$f"; then
               echo "ERROR: \\s inside a ucode character class is literal 's'; use [ \\t\\r\\n\\f\\v]" >&2
+              exit 1
+            fi
+            # fs.popen() takes a command string on the ucode shipped by
+            # OpenWrt 23.05-25.12; argv-array support only landed upstream in
+            # 2026-07 and returns null on routers. Use shquote() instead.
+            if grep -nE 'popen\([[:space:]]*\[' "$f"; then
+              echo "ERROR: fs.popen() does not accept an argv array on OpenWrt's ucode" >&2
               exit 1
             fi
           done
@@ -204,7 +211,7 @@ jobs:
           fi
           tar -czf "rust-dns-${VERSION}-openwrt-src.tar.gz" \
             openwrt/rust-dns openwrt/geo2txt luci-app-rust-dns \
-            docs/RELEASE-NOTES-0.1.1.md docs/RELEASE-NOTES-0.1.2.md docs/RELEASE-NOTES-0.1.3.md README.md README.zh-CN.md LICENSE
+            docs/RELEASE-NOTES-0.1.1.md docs/RELEASE-NOTES-0.1.2.md docs/RELEASE-NOTES-0.1.3.md docs/RELEASE-NOTES-0.1.4.md README.md README.zh-CN.md LICENSE
           (cd artifacts && sha256sum *.tar.gz > SHA256SUMS)
           cat artifacts/SHA256SUMS
 
@@ -215,7 +222,7 @@ jobs:
           generate_release_notes: true
           body: |
             OpenWrt packages are published with a `SHA256SUMS-packages` manifest used by the
-            LuCI upgrade backend. The 0.1.1–0.1.3 release notes are in
+            LuCI upgrade backend. The 0.1.1–0.1.4 release notes are in
             `docs/RELEASE-NOTES-*.md` and in the source bundle.
           files: |
             artifacts/*.tar.gz
