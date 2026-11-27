@@ -1,6 +1,6 @@
 # 安装 rust-dns 到 OpenWrt
 
-Release: <https://github.com/moliango/rust-dns/releases/tag/v0.1.5>
+Release: <https://github.com/moliango/rust-dns/releases/tag/v0.1.6>
 
 每个平台有四个包：
 
@@ -41,8 +41,8 @@ apk --print-arch
 
 ```text
 24.10.8_x86_64-24.10.8_geo2txt_1.0.0-r1_x86_64.ipk
-24.10.8_x86_64-24.10.8_rust-dns_0.1.5-r1_x86_64.ipk
-24.10.8_x86_64-24.10.8_luci-app-rust-dns_0.1.5-r1_all.ipk
+24.10.8_x86_64-24.10.8_rust-dns_0.1.6-r1_x86_64.ipk
+24.10.8_x86_64-24.10.8_luci-app-rust-dns_0.1.6-r1_all.ipk
 24.10.8_x86_64-24.10.8_luci-i18n-rust-dns-zh-cn_0.261123.47855_all.ipk
 ```
 
@@ -50,10 +50,10 @@ apk --print-arch
 
 ```sh
 cd /tmp
-BASE=https://github.com/moliango/rust-dns/releases/download/v0.1.5
+BASE=https://github.com/moliango/rust-dns/releases/download/v0.1.6
 wget "$BASE/24.10.8_x86_64-24.10.8_geo2txt_1.0.0-r1_x86_64.ipk"
-wget "$BASE/24.10.8_x86_64-24.10.8_rust-dns_0.1.5-r1_x86_64.ipk"
-wget "$BASE/24.10.8_x86_64-24.10.8_luci-app-rust-dns_0.1.5-r1_all.ipk"
+wget "$BASE/24.10.8_x86_64-24.10.8_rust-dns_0.1.6-r1_x86_64.ipk"
+wget "$BASE/24.10.8_x86_64-24.10.8_luci-app-rust-dns_0.1.6-r1_all.ipk"
 wget "$BASE/24.10.8_x86_64-24.10.8_luci-i18n-rust-dns-zh-cn_0.261123.47855_all.ipk"
 ```
 
@@ -68,8 +68,8 @@ GitHub 代理。不要从不明来源下载重新打包的 ipk。
 # 23.05 / 24.10
 opkg update
 opkg install ./24.10.8_x86_64-24.10.8_geo2txt_1.0.0-r1_x86_64.ipk
-opkg install ./24.10.8_x86_64-24.10.8_rust-dns_0.1.5-r1_x86_64.ipk
-opkg install ./24.10.8_x86_64-24.10.8_luci-app-rust-dns_0.1.5-r1_all.ipk
+opkg install ./24.10.8_x86_64-24.10.8_rust-dns_0.1.6-r1_x86_64.ipk
+opkg install ./24.10.8_x86_64-24.10.8_luci-app-rust-dns_0.1.6-r1_all.ipk
 opkg install ./24.10.8_x86_64-24.10.8_luci-i18n-rust-dns-zh-cn_0.261123.47855_all.ipk  # 可选
 ```
 
@@ -77,8 +77,8 @@ opkg install ./24.10.8_x86_64-24.10.8_luci-i18n-rust-dns-zh-cn_0.261123.47855_al
 # 25.12 / apk
 apk update
 apk add --allow-untrusted ./25.12.6_x86_64-25.12.6_geo2txt-1.0.0-r1.apk
-apk add --allow-untrusted ./25.12.6_x86_64-25.12.6_rust-dns-0.1.5-r1.apk
-apk add --allow-untrusted ./25.12.6_x86_64-25.12.6_luci-app-rust-dns-0.1.5-r1.apk
+apk add --allow-untrusted ./25.12.6_x86_64-25.12.6_rust-dns-0.1.6-r1.apk
+apk add --allow-untrusted ./25.12.6_x86_64-25.12.6_luci-app-rust-dns-0.1.6-r1.apk
 apk add --allow-untrusted ./25.12.6_x86_64-25.12.6_luci-i18n-rust-dns-zh-cn-*.apk  # 可选
 ```
 
@@ -175,6 +175,7 @@ opkg remove luci-app-rust-dns rust-dns geo2txt
 | `ubus call luci.rust_dns get_stats` 报 `Command failed: Not found`，页面提示 API 不可达 | 0.1.2 的 LuCI 包文件权限为 `0777`，rpcd 会忽略；执行 `chmod 0644 /usr/share/rpcd/ucode/luci.rust_dns && /etc/init.d/rpcd restart`，或升级到 0.1.3 |
 | Cloudflare 优选提示 `Unable to launch the optimizer process.` | 0.1.3 及更早版本把 argv 数组传给 `fs.popen()`，当前 OpenWrt 的 ucode 会返回 `null`；升级到 0.1.4 |
 | 优选结果全是 `Failed`，或大部分是 `Not tested` | 0.1.4 及更早版本只从第一个 Cloudflare 网段取候选，0.1.5 改为全量网段采样。`Not tested` 表示未进入下载测速，不是失败；可在优选页调大 Download tests，透明代理下把 Bypass mode 设为 `mark` |
+| 关闭 LuCI 标签页偶尔卡顿 | 0.1.5 及更早版本会一次渲染全部优选结果，并在标签页隐藏后继续轮询；升级到 0.1.6 |
 | Geodata Update 报 `geo2txt: not found` | 未安装 `geo2txt`，按上面的顺序补装 |
 | LuCI 没有 Rust DNS 菜单 | 清 `/tmp/luci-*`、重新登录；确认 `luci-app-rust-dns` 已安装 |
 | 服务起不来 | 看 `/var/etc/rust-dns/last-error.log` 和 `logread -e rust-dns` |

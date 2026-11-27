@@ -118,7 +118,7 @@ Each release ships four packages:
 Download the files matching your OpenWrt release and package architecture.
 Release filenames are prefixed with the OpenWrt version and target arch to
 avoid collisions, for example
-`24.10.8_x86_64-24.10.8_rust-dns_0.1.5-r1_x86_64.ipk`. Install **geo2txt
+`24.10.8_x86_64-24.10.8_rust-dns_0.1.6-r1_x86_64.ipk`. Install **geo2txt
 first**, then the service package, then LuCI:
 
 ```sh
@@ -264,8 +264,8 @@ finish/cancel/error.
 - Release:
 
 ```sh
-git tag v0.1.5
-git push origin v0.1.5
+git tag v0.1.6
+git push origin v0.1.6
 ```
 
 After publishing, copy the release SHA256 back into
