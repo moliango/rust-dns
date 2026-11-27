@@ -48,6 +48,7 @@ let keywordInput = null;
 let userScrolled = false;
 let scrollPosition = 0;
 let pollRegistered = false;
+let visibilityRegistered = false;
 
 function safeCall(fn, fallback) {
 	try {
@@ -115,6 +116,10 @@ function renderLog() {
 }
 
 function pollLog() {
+	/* Skip RPC and DOM work while the tab is in the background. */
+	if (document.visibilityState === 'hidden')
+		return Promise.resolve();
+
 	return safeCall(callPrintLog, { error: _('Log API is unavailable.') }).then(res => {
 		res = res || {};
 
@@ -232,6 +237,14 @@ return view.extend({
 		if (!pollRegistered) {
 			pollRegistered = true;
 			poll.add(pollLog, 5);
+		}
+
+		if (!visibilityRegistered) {
+			visibilityRegistered = true;
+			document.addEventListener('visibilitychange', () => {
+				if (document.visibilityState === 'visible')
+					pollLog();
+			});
 		}
 		pollLog();
 

@@ -64,6 +64,7 @@ const EDITOR_ELEMENT_ID = 'widget.cbid.rust-dns.config._custom';
 
 let serviceVersion = '';
 let statusPollRegistered = false;
+let statusVisibilityRegistered = false;
 let yamlEditor = null;
 let codeMirrorLoad = null;
 
@@ -495,7 +496,20 @@ return view.extend({
 			setTimeout(() => {
 				if (!statusPollRegistered) {
 					statusPollRegistered = true;
-					poll.add(() => refreshStatus(), STATUS_POLL_INTERVAL);
+					poll.add(() => {
+						/* Skip the RPC while the tab is in the background. */
+						if (document.visibilityState === 'hidden')
+							return;
+						refreshStatus();
+					}, STATUS_POLL_INTERVAL);
+				}
+
+				if (!statusVisibilityRegistered) {
+					statusVisibilityRegistered = true;
+					document.addEventListener('visibilitychange', () => {
+						if (document.visibilityState === 'visible' && statusPollRegistered)
+							refreshStatus();
+					});
 				}
 				refreshStatus();
 				setupYamlEditor();
