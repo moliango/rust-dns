@@ -147,6 +147,7 @@ function styleSheet() {
 		'.cf-badge { display: inline-block; padding: 0.1em 0.5em; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }',
 		'.cf-pass { background: rgba(16,185,129,0.14); color: #059669; }',
 		'.cf-fail { background: rgba(220,38,38,0.14); color: #dc2626; }',
+		'.cf-untested { background: rgba(125,125,125,0.14); opacity: 0.85; }',
 		'.cf-meta { display: flex; flex-wrap: wrap; gap: 0.35rem 1.25rem; font-size: 0.8rem; opacity: 0.85; margin-top: 0.5rem; }',
 		'.cf-preview { max-height: 220px; overflow: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; background: rgba(125,125,125,0.08); padding: 0.6rem; border-radius: 4px; white-space: pre; }',
 		'.cf-log { max-height: 220px; overflow: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; white-space: pre-wrap; background: rgba(125,125,125,0.08); padding: 0.6rem; border-radius: 4px; }',
@@ -893,7 +894,9 @@ function filteredRows() {
 			return false;
 		if (passed === 'passed' && !row.passed)
 			return false;
-		if (passed === 'failed' && row.passed)
+		// "Failed" means the row reached the speed test and missed a
+		// threshold. Rows outside the download winners were never tested.
+		if (passed === 'failed' && (row.passed || row.download_tested !== true))
 			return false;
 		return true;
 	});
@@ -948,6 +951,12 @@ function renderResults() {
 	else {
 		rows.forEach(row => {
 			const applicable = row.passed === true;
+			const status = applicable
+				? { cls: 'cf-pass', label: _('Passed'), title: '' }
+				: (row.download_tested === true
+					? { cls: 'cf-fail', label: _('Failed'), title: '' }
+					: { cls: 'cf-untested', label: _('Not tested'),
+						title: _('Only the fastest latency results receive a download test.') });
 
 			if (applicable)
 				visibleIps[row.ip] = true;
@@ -985,8 +994,8 @@ function renderResults() {
 				E('td', { class: 'cf-mono' }, fmtNumber(row.latency_avg_ms)),
 				E('td', { class: 'cf-mono' }, fmtNumber(row.loss_pct)),
 				E('td', { class: 'cf-mono' }, fmtNumber(row.speed_mbps)),
-				E('td', {}, E('span', { class: 'cf-badge ' + (row.passed ? 'cf-pass' : 'cf-fail') },
-					row.passed ? _('Passed') : _('Failed'))),
+				E('td', {}, E('span', { class: 'cf-badge ' + status.cls, title: status.title },
+					status.label)),
 				E('td', {}, writeButton)
 			]));
 		});
@@ -1041,11 +1050,16 @@ function renderReportMeta(report) {
 	}
 
 	const bypass = report.bypass || {};
+	const results = report.results || [];
+	const tested = results.filter(row => row.download_tested === true).length;
+	const passedCount = results.filter(row => row.passed === true).length;
 	const parts = [
 		_('Run ID') + ': ' + (report.run_id || '-'),
 		_('Started') + ': ' + (report.started_at || '-'),
 		_('Finished') + ': ' + (report.finished_at || '-'),
-		_('Results') + ': ' + ((report.results || []).length),
+		_('Results') + ': ' + results.length,
+		_('Speed-tested') + ': ' + tested,
+		_('Passed') + ': ' + passedCount,
 		_('Bypass') + ': ' + (bypass.mode || '-') +
 			(bypass.mode && bypass.mode !== 'none'
 				? ' (' + (bypass.verified ? _('Verified') : _('Unverified')) + ')'

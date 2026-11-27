@@ -1,5 +1,9 @@
 # rust-dns 0.1.4 发布说明
 
+> 0.1.4 之后仍可能“全部失败”：候选 IP 只取第一个网段，以及未测速行显示为
+> 失败。这两点在 0.1.5 修复，见
+> [`RELEASE-NOTES-0.1.5.md`](RELEASE-NOTES-0.1.5.md)。
+
 修复 0.1.1–0.1.3 中 Cloudflare 优选无法启动的问题：页面提示
 “Unable to launch the optimizer process.”，但 rust-dns 服务本身正常。
 

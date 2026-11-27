@@ -312,7 +312,7 @@ pub async fn load_candidates<R: RangeFetcher + ?Sized>(
         }
         IpSourceKind::Cloudflare => {
             let lines = ranges.fetch(config.family).await?;
-            parse_ip_entries(&lines.join("\n"), config.family, config.max_candidates)
+            spread_range_candidates(&lines, config.family, config.max_candidates)
                 .context("parse Cloudflare ranges")?
         }
     };
@@ -333,6 +333,126 @@ pub async fn load_candidates<R: RangeFetcher + ?Sized>(
         bail!("IP source produced no usable {:?} addresses", config.family);
     }
     Ok(capped)
+}
+
+/// Turn Cloudflare's range document into a capped candidate list.
+///
+/// The ranges are sampled evenly instead of expanded from the top of the
+/// document: taking the first `max_candidates` addresses exhausted the first
+/// /20 (173.245.48.0/20) and never probed the rest of Cloudflare's anycast
+/// space, so a network where that one range is unreachable made every run
+/// fail with no usable result.
+pub fn spread_range_candidates(
+    ranges: &[String],
+    family: Family,
+    max_candidates: usize,
+) -> Result<Vec<IpAddr>> {
+    if max_candidates == 0 {
+        return Ok(Vec::new());
+    }
+
+    let mut parsed = Vec::new();
+    for raw in ranges {
+        let (addr, prefix) =
+            parse_cidr(raw.trim()).with_context(|| format!("invalid Cloudflare CIDR {raw:?}"))?;
+        if !family.matches(&addr) {
+            bail!("{raw:?} is not an IPv{} range", family.as_u8());
+        }
+        if !is_public_ip(&addr) {
+            bail!("{raw:?} is not a public Cloudflare range");
+        }
+        parsed.push((addr, prefix));
+    }
+    if parsed.is_empty() {
+        bail!(
+            "range document for IPv{} contained no entries",
+            family.as_u8()
+        );
+    }
+
+    let per_range = max_candidates / parsed.len();
+    let remainder = max_candidates % parsed.len();
+    let mut seen = HashSet::new();
+    let mut out = Vec::with_capacity(max_candidates);
+
+    for (index, (addr, prefix)) in parsed.iter().enumerate() {
+        let quota = per_range + usize::from(index < remainder);
+        for ip in spread_cidr(*addr, *prefix, quota) {
+            if seen.insert(ip) {
+                out.push(ip);
+                if out.len() >= max_candidates {
+                    return Ok(out);
+                }
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// Pick `quota` addresses spread evenly over one prefix.
+///
+/// Slice midpoints are used, so an IPv4 network/broadcast address is never a
+/// candidate and a small quota still covers the whole range instead of its
+/// first few addresses. The result is deterministic and ascending.
+fn spread_cidr(addr: IpAddr, prefix: u8, quota: usize) -> Vec<IpAddr> {
+    if quota == 0 {
+        return Vec::new();
+    }
+
+    match addr {
+        IpAddr::V4(v4) => {
+            if prefix > 32 {
+                return Vec::new();
+            }
+            let host_bits = 32 - u32::from(prefix);
+            let base = u64::from(u32::from(v4) & mask_v4(prefix));
+            let total = 1_u64 << host_bits;
+            let quota = quota as u64;
+
+            if quota >= total {
+                return (0..total)
+                    .map(|offset| IpAddr::V4(Ipv4Addr::from((base + offset) as u32)))
+                    .collect();
+            }
+
+            let step = total / quota;
+            (0..quota)
+                .map(|index| {
+                    let offset = step / 2 + index * step;
+                    IpAddr::V4(Ipv4Addr::from((base + offset) as u32))
+                })
+                .collect()
+        }
+        IpAddr::V6(v6) => {
+            if prefix > 128 {
+                return Vec::new();
+            }
+            let host_bits = 128 - u32::from(prefix);
+            let base = u128::from(v6) & mask_v6(prefix);
+            // A /0 is 2^128 addresses, which does not fit in u128; Cloudflare
+            // never publishes one, so saturate instead of overflowing.
+            let total = if host_bits >= 128 {
+                u128::MAX
+            } else {
+                1_u128 << host_bits
+            };
+            let quota = quota as u128;
+
+            if quota >= total {
+                return (0..total as usize)
+                    .map(|offset| IpAddr::V6(Ipv6Addr::from(base + offset as u128)))
+                    .collect();
+            }
+
+            let step = total / quota;
+            (0..quota as usize)
+                .map(|index| {
+                    let offset = step / 2 + index as u128 * step;
+                    IpAddr::V6(Ipv6Addr::from(base.wrapping_add(offset)))
+                })
+                .collect()
+        }
+    }
 }
 
 /// Read IP/CIDR entries from a file. `#` starts a comment; entries may be
@@ -633,6 +753,62 @@ mod tests {
         assert_eq!(ips.len(), 2);
         let (addr, prefix) = parse_cidr("104.16.0.0/8").unwrap();
         assert_eq!(expand_cidr(addr, prefix, 3).unwrap().len(), 3);
+    }
+
+    #[test]
+    fn cloudflare_ranges_are_sampled_evenly() {
+        let ranges = vec![
+            "173.245.48.0/20".to_string(),
+            "104.16.0.0/13".to_string(),
+            "172.64.0.0/13".to_string(),
+        ];
+        let ips = spread_range_candidates(&ranges, Family::V4, 30).unwrap();
+
+        assert_eq!(ips.len(), 30);
+        // Output follows the range document, ten addresses per range.
+        assert!(
+            ips[..10]
+                .iter()
+                .all(|ip| ip.to_string().starts_with("173.245."))
+        );
+        assert!(
+            ips[10..20]
+                .iter()
+                .all(|ip| ip.to_string().starts_with("104."))
+        );
+        assert!(
+            ips[20..]
+                .iter()
+                .all(|ip| ip.to_string().starts_with("172."))
+        );
+        assert!(
+            !ips.iter().any(|ip| ip.to_string() == "173.245.48.0"),
+            "the network address must not be probed"
+        );
+    }
+
+    #[test]
+    fn small_candidate_cap_still_covers_later_ranges() {
+        let ranges = vec!["173.245.48.0/20".to_string(), "104.16.0.0/13".to_string()];
+        let ips = spread_range_candidates(&ranges, Family::V4, 2).unwrap();
+
+        assert_eq!(ips.len(), 2);
+        assert!(ips.iter().any(|ip| ip.to_string().starts_with("173.245.")));
+        assert!(ips.iter().any(|ip| ip.to_string().starts_with("104.")));
+    }
+
+    #[test]
+    fn spread_cidr_uses_slice_midpoints() {
+        let ips = spread_cidr("104.16.0.0".parse().unwrap(), 24, 4);
+        let strings: Vec<_> = ips.iter().map(|ip| ip.to_string()).collect();
+        assert_eq!(
+            strings,
+            ["104.16.0.32", "104.16.0.96", "104.16.0.160", "104.16.0.224"]
+        );
+
+        // A quota larger than the prefix returns every address once.
+        let all = spread_cidr("104.16.0.0".parse().unwrap(), 30, 10);
+        assert_eq!(all.len(), 4);
     }
 
     #[test]

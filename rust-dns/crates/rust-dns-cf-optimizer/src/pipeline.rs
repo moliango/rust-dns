@@ -424,6 +424,14 @@ where
     });
     download_candidates.truncate(config.download_count);
 
+    // Record which rows reach the speed test; every other row keeps
+    // speed 0 and must not be shown as a speed failure.
+    for (row_index, _, _) in &download_candidates {
+        if let Some(row) = rows.get_mut(*row_index) {
+            row.download_tested = true;
+        }
+    }
+
     progress.phase = ProgressPhase::Download;
     progress.tested = 0;
     progress.total = download_candidates.len() as u64;
@@ -662,6 +670,41 @@ mod tests {
         let progress = read_json(&dir.join("progress.json"));
         assert_eq!(progress["state"], "done");
         assert_eq!(progress["phase"], "verify");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn only_download_candidates_are_marked_as_tested() {
+        let dir = tempdir();
+        let config = dry_config(&dir);
+        let outcome = run(&config).await.unwrap();
+
+        let eligible = outcome
+            .report
+            .results
+            .iter()
+            .filter(|row| {
+                row.latency_avg_ms > 0.0
+                    && row.latency_avg_ms <= config.max_latency_ms
+                    && row.loss_pct <= config.max_loss_pct
+            })
+            .count()
+            .min(config.download_count);
+        let tested = outcome
+            .report
+            .results
+            .iter()
+            .filter(|row| row.download_tested)
+            .count();
+
+        assert_eq!(tested, eligible);
+        for row in &outcome.report.results {
+            if !row.download_tested {
+                assert_eq!(row.speed_mbps, 0.0);
+                assert!(!row.passed);
+            }
+        }
+
         let _ = std::fs::remove_dir_all(dir);
     }
 

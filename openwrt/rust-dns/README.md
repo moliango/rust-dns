@@ -47,9 +47,9 @@ target, a tarball with one top-level directory `rust-dns-<version>-<arch>/`
 containing `rust-dns`:
 
 ```
-rust-dns-0.1.4-x86_64.tar.gz
-rust-dns-0.1.4-aarch64.tar.gz
-rust-dns-0.1.4-armv7.tar.gz
+rust-dns-0.1.5-x86_64.tar.gz
+rust-dns-0.1.5-aarch64.tar.gz
+rust-dns-0.1.5-armv7.tar.gz
 ```
 
 The Makefile maps OpenWrt `ARCH` to `x86_64`, `aarch64` or `armv7`, reads
@@ -70,10 +70,10 @@ The same Makefile and conffiles definition are used by both backends:
 
 ```sh
 # opkg (23.05, 24.10)
-opkg install rust-dns_0.1.4-*.ipk
+opkg install rust-dns_0.1.5-*.ipk
 
 # apk (25.12/main)
-apk add --allow-untrusted rust-dns-0.1.4-*.apk
+apk add --allow-untrusted rust-dns-0.1.5-*.apk
 ```
 
 The package does **not** enable the service automatically.  After installing:

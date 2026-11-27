@@ -187,6 +187,12 @@ pub struct ResultRow {
     pub latency_avg_ms: f64,
     pub loss_pct: f64,
     pub speed_mbps: f64,
+    /// Whether this row was selected for the download stage.  Only the
+    /// `download_count` fastest latency winners are speed-tested, so an
+    /// untested row has `speed_mbps = 0` and `passed = false` even when its
+    /// latency is fine.
+    #[serde(default)]
+    pub download_tested: bool,
     pub passed: bool,
 }
 
@@ -199,6 +205,7 @@ impl ResultRow {
             latency_avg_ms: stats.avg_ms.unwrap_or(0.0),
             loss_pct: stats.loss_pct,
             speed_mbps: 0.0,
+            download_tested: false,
             passed: false,
         }
     }
@@ -541,6 +548,7 @@ mod tests {
                 "latency_avg_ms",
                 "loss_pct",
                 "speed_mbps",
+                "download_tested",
                 "passed"
             ])
         );
